@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How Sedai supports Expedia’s progressive deployment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  --bg:#F7F7FA; --surface:#FFFFFF; --surface-2:#F1F1F6;
+  --ink:#15161D; --ink-2:#494C5C; --ink-3:#72768A;
+  --rule:#E0E0EA; --rule-strong:#C7C7D6;
+  --accent:#4A4AD6; --accent-soft:#EFEFFC;
+  --good:#10703F; --good-bg:#E6F4EC; --good-rule:#B6DCC6;
+  --warn:#8A5200; --warn-bg:#FBF1DE;
+  --crit:#A62B22; --crit-bg:#FBEAE8;
+  --o1:#A6A6F6; --o2:#8080EE; --o3:#5B5BD6; --o4:#37379E;
+  --c1:#5B5BD6; --c2:#0D8F82;
+  --shadow:0 1px 2px rgba(21,22,29,.05), 0 8px 24px -18px rgba(21,22,29,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101218; --surface:#1B1E26; --surface-2:#232733;
+    --ink:#EDEEF4; --ink-2:#B4B8C8; --ink-3:#878DA0;
+    --rule:#2B2F3C; --rule-strong:#3D4354;
+    --accent:#9A9AFF; --accent-soft:#232441;
+    --good:#54C98A; --good-bg:#14301F; --good-rule:#265C3C;
+    --warn:#E0A758; --warn-bg:#31250F;
+    --crit:#F0796C; --crit-bg:#351A18;
+    --o1:#5555C8; --o2:#7272E4; --o3:#9A9AF2; --o4:#C2C2FA;
+    --c1:#8484EC; --c2:#19A096;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101218; --surface:#1B1E26; --surface-2:#232733;
+  --ink:#EDEEF4; --ink-2:#B4B8C8; --ink-3:#878DA0;
+  --rule:#2B2F3C; --rule-strong:#3D4354;
+  --accent:#9A9AFF; --accent-soft:#232441;
+  --good:#54C98A; --good-bg:#14301F; --good-rule:#265C3C;
+  --warn:#E0A758; --warn-bg:#31250F;
+  --crit:#F0796C; --crit-bg:#351A18;
+  --o1:#5555C8; --o2:#7272E4; --o3:#9A9AF2; --o4:#C2C2FA;
+  --c1:#8484EC; --c2:#19A096;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Source Serif 4","Iowan Old Style",Georgia,serif;
+  font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:0 28px 96px}
+.prose{max-width:68ch}
+h1,h2,h3,.eyebrow,.stat-v,th,.label,.pill,.btn{
+  font-family:Archivo,"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+code,kbd,.mono,.num,td.num,.meta-v,.tag{
+  font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.num,td,th{font-variant-numeric:tabular-nums}
+
+/* ---------- masthead ---------- */
+header.masthead{border-bottom:1px solid var(--rule); background:var(--surface)}
+.masthead .wrap{padding-top:44px; padding-bottom:0}
+.eyebrow{
+  font-size:11.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--accent); margin:0 0 18px;
+}
+h1{
+  font-size:clamp(34px,5.4vw,54px); font-weight:700; letter-spacing:-.022em;
+  line-height:1.06; margin:0 0 20px; text-wrap:balance; max-width:20ch;
+}
+.standfirst{font-size:20px; line-height:1.55; color:var(--ink-2); margin:0 0 34px; max-width:62ch}
+.meta{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+  gap:0; border-top:1px solid var(--rule); margin-bottom:0;
+}
+.meta div{padding:16px 20px 18px; border-right:1px solid var(--rule)}
+.meta div:last-child{border-right:0}
+.meta .label{
+  display:block; font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:6px;
+}
+.meta-v{font-size:14px; color:var(--ink); line-height:1.35}
+
+/* ---------- sections ---------- */
+section{padding-top:72px}
+h2{
+  font-size:13px; font-weight:600; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 6px; padding-bottom:14px; border-bottom:1px solid var(--rule-strong);
+}
+h2 .n{color:var(--accent); margin-right:12px}
+h3{font-size:23px; font-weight:650; letter-spacing:-.012em; margin:38px 0 12px; text-wrap:balance}
+h2 + h3, h2 + .prose > h3:first-child{margin-top:30px}
+p{margin:0 0 18px}
+.prose ul{margin:0 0 18px; padding-left:22px}
+.prose li{margin-bottom:9px}
+strong{font-weight:600}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+/* ---------- verdict ---------- */
+.verdict{
+  display:flex; gap:18px; align-items:flex-start; margin:34px 0 0;
+  padding:22px 26px; background:var(--good-bg); border:1px solid var(--good-rule); border-radius:10px;
+}
+.verdict .mark{
+  flex:none; width:26px; height:26px; border-radius:50%; background:var(--good);
+  color:var(--good-bg); display:grid; place-items:center; font-size:15px; font-weight:700; margin-top:3px;
+  font-family:Archivo,sans-serif;
+}
+.verdict p{margin:0; color:var(--ink); font-size:17px}
+.verdict .head{font-family:Archivo,sans-serif; font-weight:650; display:block; margin-bottom:4px}
+
+/* ---------- stat tiles ---------- */
+.stats{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); border-radius:10px; overflow:hidden;
+  margin:34px 0 0; box-shadow:var(--shadow);
+}
+.stat{background:var(--surface); padding:22px 22px 20px}
+.stat .label{
+  display:block; font-size:10.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:12px;
+}
+.stat-v{font-size:34px; font-weight:700; letter-spacing:-.03em; line-height:1; display:block; font-variant-numeric:tabular-nums}
+.stat-v .u{font-size:15px; font-weight:600; color:var(--ink-3); letter-spacing:0; margin-left:3px}
+.stat .note{display:block; font-size:13.5px; color:var(--ink-3); margin-top:9px; line-height:1.4}
+
+/* ---------- tables ---------- */
+.tablewrap{
+  overflow-x:auto; border:1px solid var(--rule); border-radius:10px; background:var(--surface);
+  margin:26px 0 10px; box-shadow:var(--shadow);
+}
+table{border-collapse:collapse; width:100%; font-size:14px}
+caption{
+  text-align:left; font-family:Archivo,sans-serif; font-size:13px; font-weight:600;
+  color:var(--ink-2); padding:16px 20px 0; caption-side:top;
+}
+th{
+  text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); padding:16px 16px 10px; border-bottom:1px solid var(--rule-strong); white-space:nowrap;
+}
+td{padding:11px 16px; border-bottom:1px solid var(--rule); color:var(--ink-2); vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right}
+td.k{color:var(--ink); font-weight:600; font-family:Archivo,sans-serif; white-space:nowrap}
+td.mono{font-size:13px; color:var(--ink)}
+tbody tr:hover td{background:var(--surface-2)}
+.pill{
+  display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  padding:3px 9px; border-radius:999px; background:var(--good-bg); color:var(--good); border:1px solid var(--good-rule);
+}
+.tag{
+  display:inline-block; font-size:12px; padding:2px 7px; border-radius:4px;
+  background:var(--accent-soft); color:var(--accent); border:1px solid var(--rule);
+}
+.foot{font-size:13.5px; color:var(--ink-3); margin:12px 0 0; max-width:74ch; line-height:1.5}
+
+/* ---------- charts ---------- */
+.figure{
+  margin:30px 0 8px; background:var(--surface); border:1px solid var(--rule);
+  border-radius:10px; padding:22px 22px 14px; box-shadow:var(--shadow); position:relative;
+}
+.figure h4{
+  font-family:Archivo,sans-serif; font-size:15px; font-weight:650; margin:0 0 3px; color:var(--ink);
+}
+.figure .sub{font-size:13.5px; color:var(--ink-3); margin:0 0 14px}
+.legend{display:flex; flex-wrap:wrap; gap:16px; margin:2px 0 12px}
+.legend span{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-2); font-family:"IBM Plex Mono",monospace}
+.legend i{width:14px; height:3px; border-radius:2px; display:inline-block}
+svg{display:block; width:100%; height:auto; overflow:visible}
+.grid line{stroke:var(--rule)}
+.axis text{fill:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-size:11px}
+.axis line{stroke:var(--rule-strong)}
+.slab{fill:var(--ink); font-family:"IBM Plex Mono",monospace; font-size:11.5px}
+.ref line{stroke:var(--ink-3); stroke-dasharray:4 4}
+.ref text{fill:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-size:11px}
+.tip{
+  position:absolute; pointer-events:none; opacity:0; transition:opacity .09s ease;
+  background:var(--surface); border:1px solid var(--rule-strong); border-radius:8px;
+  padding:10px 12px; box-shadow:0 10px 30px -12px rgba(0,0,0,.45); font-size:12.5px;
+  font-family:"IBM Plex Mono",monospace; color:var(--ink); min-width:150px; z-index:5;
+}
+.tip b{display:block; font-family:Archivo,sans-serif; font-size:12px; margin-bottom:6px; color:var(--ink)}
+.tip .row{display:flex; justify-content:space-between; gap:14px; line-height:1.7}
+.tip .row i{width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:6px}
+.tip .row span:first-child{color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+
+/* ---------- code ---------- */
+pre{
+  background:var(--surface-2); border:1px solid var(--rule); border-radius:8px;
+  padding:16px 18px; overflow-x:auto; font-size:13px; line-height:1.65; color:var(--ink);
+  margin:20px 0;
+}
+code{font-size:.93em}
+p code,li code,td code{background:var(--surface-2); padding:1px 5px; border-radius:4px; border:1px solid var(--rule)}
+
+/* ---------- footer ---------- */
+footer{margin-top:80px; border-top:1px solid var(--rule); padding-top:24px; color:var(--ink-3); font-size:13.5px}
+footer p{margin:0 0 6px; max-width:74ch}
+@media (max-width:900px){ .stats{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:640px){
+  body{font-size:16px}
+  .wrap{padding:0 18px 64px}
+  .meta div{border-right:0; border-bottom:1px solid var(--rule)}
+  section{padding-top:52px}
+}
+
+/* ---------- progressive disclosure ---------- */
+.discs{margin-top:26px; display:flex; flex-direction:column; gap:10px}
+details.disc{
+  border:1px solid var(--rule); border-radius:10px; background:var(--surface);
+  overflow:hidden; box-shadow:var(--shadow);
+}
+details.disc > summary{
+  cursor:pointer; list-style:none; padding:17px 22px; display:flex; align-items:baseline; gap:14px;
+  font-family:Archivo,sans-serif; font-weight:600; font-size:15.5px; color:var(--ink);
+}
+details.disc > summary::-webkit-details-marker{display:none}
+details.disc > summary:hover{background:var(--surface-2)}
+details.disc > summary:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+summary .sign{
+  flex:none; width:18px; height:18px; border-radius:4px; background:var(--accent-soft);
+  color:var(--accent); display:inline-grid; place-items:center; font-size:13px; font-weight:700;
+  align-self:center; line-height:1;
+}
+summary .sign::before{content:"+"}
+details[open] > summary .sign::before{content:"\2212"}
+summary .hint{
+  margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3);
+  font-weight:400; text-align:right;
+}
+details.disc[open] > summary{border-bottom:1px solid var(--rule)}
+.disc-body{padding:20px 22px 24px}
+.disc-body > .prose{max-width:66ch}
+.disc-body .tablewrap{box-shadow:none; margin-top:18px}
+.disc-body h3:first-child{margin-top:0}
+
+/* ---------- takeaway cards ---------- */
+.takeaways{display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); gap:16px; margin-top:28px}
+.take{
+  background:var(--surface); border:1px solid var(--rule); border-radius:10px;
+  padding:22px 22px 20px; box-shadow:var(--shadow);
+}
+.take .big{
+  font-family:Archivo,sans-serif; font-size:27px; font-weight:700; letter-spacing:-.025em;
+  display:block; margin-bottom:10px; color:var(--ink); font-variant-numeric:tabular-nums;
+}
+.take .big .u{font-size:14px; font-weight:600; color:var(--ink-3); letter-spacing:0; margin-left:3px}
+.take p{margin:0; font-size:14.5px; line-height:1.5; color:var(--ink-2)}
+
+/* ---------- at-a-glance grid ---------- */
+.glance{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--rule);
+  border:1px solid var(--rule); border-radius:10px; overflow:hidden; margin-top:26px;
+  box-shadow:var(--shadow);
+}
+.glance div{background:var(--surface); padding:16px 18px 17px}
+.glance .label{
+  display:block; font-family:Archivo,sans-serif; font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:6px;
+}
+.glance .v{font-family:"IBM Plex Mono",monospace; font-size:13.5px; color:var(--ink); line-height:1.4}
+
+/* ---------- click-to-reveal affordances ---------- */
+.stat{position:relative; cursor:pointer; text-align:left; width:100%; border:0; font:inherit; color:inherit}
+.stat:hover{background:var(--surface-2)}
+.stat:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.stat .more{
+  position:absolute; right:14px; top:14px; font-family:"IBM Plex Mono",monospace; font-size:11px;
+  color:var(--ink-3); opacity:0; transition:opacity .12s ease;
+}
+.stat:hover .more,.stat:focus-visible .more{opacity:1}
+tr.clickable{cursor:pointer}
+tr.clickable td:last-child .det{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); margin-left:10px; opacity:0;
+}
+tr.clickable:hover td:last-child .det{opacity:1}
+button.term{
+  border:0; background:none; padding:0; font:inherit; color:inherit; cursor:pointer;
+  border-bottom:1px dotted var(--accent); line-height:1.2;
+}
+button.term:hover{color:var(--accent)}
+button.term:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px}
+
+/* ---------- modal ---------- */
+dialog.panel{
+  border:1px solid var(--rule-strong); border-radius:12px; background:var(--surface); color:var(--ink);
+  padding:0; max-width:min(640px,calc(100vw - 32px)); width:100%;
+  box-shadow:0 24px 70px -24px rgba(0,0,0,.6);
+}
+dialog.panel::backdrop{background:rgba(10,11,16,.52)}
+.panel-head{
+  display:flex; align-items:flex-start; gap:16px; padding:22px 24px 16px; border-bottom:1px solid var(--rule);
+}
+.panel-head h3{margin:0; font-size:20px; font-weight:650; letter-spacing:-.012em}
+.panel-head .k{
+  display:block; font-family:Archivo,sans-serif; font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:5px;
+}
+.panel-head button{
+  margin-left:auto; flex:none; border:1px solid var(--rule); background:var(--surface-2); color:var(--ink-2);
+  width:30px; height:30px; border-radius:7px; cursor:pointer; font-size:16px; line-height:1;
+}
+.panel-head button:hover{color:var(--ink); border-color:var(--rule-strong)}
+.panel-body{padding:20px 24px 24px; font-size:15px; line-height:1.55; color:var(--ink-2)}
+.panel-body p{margin:0 0 14px}
+.panel-body p:last-child{margin-bottom:0}
+.panel-body .kv{display:grid; grid-template-columns:1fr auto; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:4px 0 16px}
+.panel-body .kv > span{background:var(--surface); padding:9px 14px; font-size:13.5px}
+.panel-body .kv > span:nth-child(even){
+  font-family:"IBM Plex Mono",monospace; text-align:right; color:var(--ink); font-variant-numeric:tabular-nums;
+}
+.panel-body .kv .sub{color:var(--ink-3); font-size:12px}
+.panel-body h4{
+  font-family:Archivo,sans-serif; font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); margin:22px 0 8px;
+}
+.panel-body h4:first-child{margin-top:0}
+@media (max-width:900px){ .glance{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:640px){ .glance{grid-template-columns:1fr} }
+
+.tip-pop{
+  position:fixed; z-index:50; opacity:0; pointer-events:none; transition:opacity .1s ease;
+  max-width:300px; background:var(--ink); color:var(--surface); border-radius:7px;
+  padding:9px 12px; font-family:"Source Serif 4",Georgia,serif; font-size:13.5px; line-height:1.45;
+  box-shadow:0 14px 34px -14px rgba(0,0,0,.55);
+}
+.tip-pop.on{opacity:1}
+th [data-tip]{
+  cursor:help; text-decoration:underline dotted; text-decoration-color:var(--rule-strong);
+  text-underline-offset:4px;
+}
+.glance div[data-tip]{cursor:help}
+
+:root{box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  --dep:#5B5BD6; --job:#0D8F82; --cron:#9AC9C2}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--dep:#9A9AFF; --job:#19A096; --cron:#2E6B64}}
+:root[data-theme="dark"]{--dep:#9A9AFF; --job:#19A096; --cron:#2E6B64}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+.stats.four{grid-template-columns:repeat(4,1fr)}
+div.stat{cursor:default}
+div.stat:hover{background:var(--surface)}
+.cond{margin:22px 0 0; padding:14px 18px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:0 8px 8px 0; font-size:15px; color:var(--ink-2); max-width:74ch}
+.blbl{fill:var(--ink-2); font-family:"IBM Plex Mono",monospace; font-size:11px}
+
+:root{box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+.verdict.info{background:var(--accent-soft); border-color:var(--rule)}
+.verdict.info .mark{background:var(--accent); color:var(--surface)}
+.verdict.warn{background:var(--warn-bg); border-color:var(--rule)}
+.verdict.warn .mark{background:var(--warn); color:var(--warn-bg)}
+ol.steps{margin:0 0 18px; padding-left:24px; max-width:68ch}
+ol.steps > li{margin-bottom:12px; padding-left:4px}
+ol.steps > li::marker{font-family:Archivo,sans-serif; font-weight:700; color:var(--accent)}
+ol.steps ul{margin:8px 0 0; padding-left:20px}
+ol.steps ul li{margin-bottom:6px}
+.takeaways .take .big{font-size:24px}
+td code{white-space:nowrap}
+/* diagram */
+.diagram svg{min-width:660px}
+.diagram{overflow-x:auto}
+.d-src{fill:var(--surface-2); stroke:var(--rule-strong); stroke-width:1.25}
+.d-box{fill:var(--surface); stroke:var(--rule-strong); stroke-width:1.25}
+.d-act{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.5}
+.d-warn{fill:var(--warn-bg); stroke:var(--warn); stroke-width:1.5}
+.d-line{fill:none; stroke:var(--ink-3); stroke-width:1.25}
+.d-head{fill:var(--ink-3)}
+.d-name{fill:var(--ink); font-family:Archivo,sans-serif; font-size:13px; font-weight:600}
+.d-body{fill:var(--ink-2); font-family:"IBM Plex Mono",monospace; font-size:11px}
+.d-label{fill:var(--accent); font-family:Archivo,sans-serif; font-size:10.5px; font-weight:600; letter-spacing:.12em}
+</style>
+</head><body>
+<header class="masthead"><div class="wrap">
+  <p class="eyebrow">Behaviour reference · 19 October 2026</p>
+  <h1>How Sedai supports Expedia’s progressive deployment</h1>
+  <p class="standfirst">Expedia rolls out changes with progressive deployment (PD): a blue and a green Deployment run side by side while traffic shifts from one to the other. Sedai handles this with two independent mechanisms. Blue/green topology handling merges the two colours into one stable logical app and pauses automated actions during a cutover. Annotation-driven settings let Expedia hold a workload in DATA_PILOT for as long as PD is live.</p>
+  <div class="meta">
+    <div><span class="label">Platform</span><span class="meta-v">Kubernetes</span></div>
+    <div><span class="label">Workload type</span><span class="meta-v">Deployments, blue/green pairs</span></div>
+    <div><span class="label">Mechanisms</span><span class="meta-v">Topology merge · annotation settings</span></div>
+    <div><span class="label">Recommended mode during PD</span><span class="meta-v">DATA_PILOT</span></div>
+    <div><span class="label">Annotate</span><span class="meta-v">Both colours</span></div>
+  </div>
+</div></header>
+
+<div class="wrap">
+
+<section id="glance">
+  <h2><span class="n">01</span>At a glance</h2>
+  <div class="takeaways">
+    <div class="take"><span class="big">1<span class="u">logical app</span></span><p>Each blue/green pair is tracked as one app with a stable ID, so settings, metrics history and recommendations carry over a flip.</p></div>
+    <div class="take"><span class="big">Overlap<span class="u">only</span></span><p>The automatic pause covers the cutover window, while both colours claim the same role. Steady state is not paused.</p></div>
+    <div class="take"><span class="big">2<span class="u">annotations</span></span><p>Setting optimization and availability to DATA_PILOT keeps Sedai hands-off for the entire PD window.</p></div>
+    <div class="take"><span class="big">Both<span class="u">colours</span></span><p>Settings are read from each physical Deployment, and either colour can become the logical app after a flip.</p></div>
+  </div>
+
+  <div class="figure diagram">
+    <h4>Two annotation paths keep Sedai hands-off during a PD rollout</h4>
+    <p class="sub">The left path pauses actions only during the cutover overlap. The right path holds DATA_PILOT for the whole PD window.</p>
+    <svg viewBox="0 0 760 420" role="img" aria-label="Two annotation paths keep Sedai hands-off during a PD rollout">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-head" d="M0 0L10 5L0 10z"/></marker></defs>
+      <rect class="d-src" x="16" y="8" width="728" height="60" rx="10"/>
+      <text class="d-name" x="380" y="33" text-anchor="middle">Expedia PD controller annotates both colour Deployments</text>
+      <text class="d-body" x="380" y="53" text-anchor="middle">progressivedeployment.expediagroup.com/active-primary + settings.sedai.io/*</text>
+      <path class="d-line" d="M194 68V112" marker-end="url(#ah)"/>
+      <path class="d-line" d="M566 68V112" marker-end="url(#ah)"/>
+      <text class="d-label" x="204" y="96">BLUE/GREEN KEYS</text>
+      <text class="d-label" x="576" y="96">SETTINGS KEYS</text>
+      <rect class="d-box" x="24" y="116" width="340" height="60" rx="10"/>
+      <text class="d-name" x="194" y="141" text-anchor="middle">Topology refresh: pair detection</text>
+      <text class="d-body" x="194" y="161" text-anchor="middle">pair mapped to one /logical/ app ID</text>
+      <path class="d-line" d="M194 176V204" marker-end="url(#ah)"/>
+      <rect class="d-box" x="24" y="208" width="340" height="60" rx="10"/>
+      <text class="d-name" x="194" y="233" text-anchor="middle">Cutover check</text>
+      <text class="d-body" x="194" y="253" text-anchor="middle">both colours same value = in progress</text>
+      <path class="d-line" d="M194 268V308" marker-end="url(#ah)"/>
+      <text class="d-body" x="204" y="292">yes</text>
+      <rect class="d-act" x="24" y="312" width="340" height="60" rx="10"/>
+      <text class="d-name" x="194" y="337" text-anchor="middle">Automated actions paused</text>
+      <text class="d-body" x="194" y="357" text-anchor="middle">all action types, only while in progress</text>
+      <text class="d-body" x="194" y="400" text-anchor="middle">steady state (one true, one false): not paused</text>
+      <rect class="d-box" x="396" y="116" width="340" height="60" rx="10"/>
+      <text class="d-name" x="566" y="141" text-anchor="middle">Refresh: settings from annotations</text>
+      <text class="d-body" x="566" y="161" text-anchor="middle">settings.sedai.io/&lt;name&gt; becomes an override</text>
+      <path class="d-line" d="M566 176V204" marker-end="url(#ah)"/>
+      <rect class="d-warn" x="396" y="208" width="340" height="60" rx="10"/>
+      <text class="d-name" x="566" y="233" text-anchor="middle">ignoreResourceSetting check</text>
+      <text class="d-body" x="566" y="253" text-anchor="middle">true = overrides cleared, annotations ignored</text>
+      <path class="d-line" d="M566 268V308" marker-end="url(#ah)"/>
+      <text class="d-body" x="576" y="292">false or absent</text>
+      <rect class="d-act" x="396" y="312" width="340" height="60" rx="10"/>
+      <text class="d-name" x="566" y="337" text-anchor="middle">DATA_PILOT override applied</text>
+      <text class="d-body" x="566" y="357" text-anchor="middle">no autonomous optimization or availability</text>
+      <text class="d-body" x="566" y="400" text-anchor="middle">annotate both blue and green Deployments</text>
+    </svg>
+  </div>
+
+  <div class="verdict info"><span class="mark">i</span><p><span class="head">Recommendation</span>While PD is live, set optimization and availability to DATA_PILOT on both the blue and the green Deployment, and leave <code>ignoreResourceSetting</code> unset. Section 04 has the exact annotations.</p></div>
+</section>
+
+<section id="blue-green">
+  <h2><span class="n">02</span>Blue/green topology handling</h2>
+  <div class="prose">
+    <p>On every topology refresh, Sedai turns each blue/green pair into one logical app with a stable ID. While both colours claim the same role, it also pauses every automated action on that app.</p>
+
+    <h3>Which annotations Sedai reads</h3>
+    <p>Sedai identifies a pair from two annotations: one that marks a colour as active, and one that names the app the pair belongs to. The keys are configurable per tenant. For Expedia they map to the PD controller’s own annotations:</p>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Setting</th><th>Sedai default</th><th>Expedia value</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Active colour</td><td class="mono">configs.sedai.io/deployment.active</td><td class="mono">progressivedeployment.expediagroup.com/active-primary</td></tr>
+      <tr><td class="k">App name</td><td class="mono">configs.sedai.io/deployment.blue-green-name</td><td class="mono">label.spec.app</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="prose">
+    <h3>How a pair is identified</h3>
+    <ol class="steps">
+      <li>The active annotation must be exactly <code>"true"</code> or <code>"false"</code>, and the app-name annotation must be non-blank. Otherwise the workload is treated as an ordinary Deployment.</li>
+      <li>Sedai derives a logical ID by inserting <code>logical/</code> into the workload’s ID (<code>logical/stale/</code> when inactive) and replacing the last segment with the app name. For example, <code>…/myapp-blue</code> with <code>active=true</code> becomes <code>…/logical/…/myapp</code>.</li>
+      <li>The first workload to claim a logical ID is mapped to it, together with its pods, HPA, VPA and load balancers.</li>
+      <li>If a second workload produces the same ID, both colours share a value, so a cutover is in progress and the ID is flagged in-progress.
+        <ul>
+          <li><strong>Both <code>true</code> (active-active):</strong> the second workload is mapped to the <code>/logical/stale/</code> ID, which is also flagged.</li>
+          <li><strong>Both <code>false</code>:</strong> the ID is flagged, and the second workload keeps its physical ID.</li>
+        </ul>
+      </li>
+    </ol>
+
+    <h3>What changes in the topology</h3>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Resource</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Deployment</td><td>Renamed to the app name and given the logical ID. Its original ID and name are kept, it is marked as deployment-in-progress when applicable, and release detection is re-run.</td></tr>
+      <tr><td class="k">Pod</td><td>Linked to the logical app.</td></tr>
+      <tr><td class="k">HPA / VPA</td><td>Target rewritten to the logical app.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose">
+    <p>Release detection runs on the logical ID, so a blue-to-green flip shows up as a release of one continuous app. Settings, metrics history and recommendations carry over.</p>
+
+    <h3>Pausing actions during a cutover</h3>
+    <p>Before each cycle, every automated action (optimization, availability and the rest) filters out any logical app that is flagged in-progress. The pause lasts only for the overlap window, when both colours carry the same value. Steady state, with one <code>true</code> and one <code>false</code>, is not paused.</p>
+
+    <h3>Cleaning up after a cutover</h3>
+    <p>When a logical app is no longer discovered but its original physical workload still exists:</p>
+    <ul>
+      <li><strong>Active logical app:</strong> kept, so its history and settings survive.</li>
+      <li><strong>Stale logical app (<code>/logical/stale/</code>):</strong> deleted along with its child resources.</li>
+      <li><strong>The physical workload’s own record:</strong> deleted in both cases.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="settings">
+  <h2><span class="n">03</span>Annotation-driven settings</h2>
+  <div class="prose">
+    <p>On each refresh, every <code>settings.sedai.io/&lt;settingName&gt;</code> annotation on a Kubernetes workload becomes a resource-level setting override. This is general Sedai behaviour, not specific to Expedia. Non-Kubernetes resources use tags with the <code>settings.sedai.io.&lt;settingName&gt;</code> prefix instead.</p>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Annotation</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">settings.sedai.io/optimization.setting.configMode</td><td>Overrides the optimization mode, e.g. <code>DATA_PILOT</code></td></tr>
+      <tr><td class="mono">settings.sedai.io/availability.configMode</td><td>Overrides the availability mode</td></tr>
+      <tr><td class="mono">settings.sedai.io/setting.ignoreResourceSetting: "true"</td><td>Clears all resource overrides back to the inherited group settings, and <strong>ignores every other</strong> <code>settings.sedai.io/*</code> annotation on the resource</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="recommendation">
+  <h2><span class="n">04</span>Recommended configuration</h2>
+  <div class="prose">
+    <p>While PD is live, set these two annotations on <strong>both</strong> the blue and the green Deployment, and do not set <code>ignoreResourceSetting</code>:</p>
+  </div>
+<pre><code>settings.sedai.io/optimization.setting.configMode: "DATA_PILOT"
+settings.sedai.io/availability.configMode: "DATA_PILOT"</code></pre>
+  <div class="prose">
+    <h3>Things to watch for</h3>
+    <ol class="steps">
+      <li><strong>Don’t combine <code>ignoreResourceSetting=true</code> with <code>configMode=DATA_PILOT</code>.</strong> With ignore set to true, Sedai discards the DATA_PILOT annotation and falls back to the group’s mode.</li>
+      <li><strong>The key name is exact and case-sensitive:</strong> <code>settings.sedai.io/setting.ignoreResourceSetting</code>. Variants such as <code>optimization.setting.ignoreresourcesetting</code> are not recognised.</li>
+      <li><strong><code>autonomous-optimization.expediagroup.com/enabled</code> is not read by Sedai.</strong> It is purely Expedia-side and has no effect on Sedai’s behaviour.</li>
+      <li><strong>Annotate both colours.</strong> Settings are read from each physical Deployment, and either colour can become the logical app after a flip.</li>
+      <li><strong>The built-in pause is narrow.</strong> It only covers Deployments during the overlap window. The annotations above cover the rest of the PD period.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="more">
+  <h2><span class="n">05</span>Scope and reference</h2>
+  <div class="discs">
+    <details class="disc">
+      <summary><span class="sign"></span>Scope and limitations<span class="hint">what this behaviour does not cover</span></summary>
+      <div class="disc-body"><div class="prose"><ul>
+        <li><strong>Only Deployments are merged.</strong> Argo Rollouts and StatefulSets are checked for the blue/green annotations but are not given a logical ID.</li>
+        <li><strong>Kubernetes Services are not relinked</strong> to the logical app.</li>
+        <li><strong>The automatic pause covers the overlap window only.</strong> Outside it, Sedai acts on the logical app according to its settings, which is why the DATA_PILOT annotations are recommended for the whole PD period.</li>
+      </ul></div></div>
+    </details>
+    <details class="disc">
+      <summary><span class="sign"></span>Glossary<span class="hint">the terms used on this page</span></summary>
+      <div class="disc-body"><div class="tablewrap"><table>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Progressive deployment (PD)</td><td>Expedia’s rollout process, in which a new colour Deployment runs alongside the current one while traffic shifts between them.</td></tr>
+          <tr><td class="k">Blue/green pair</td><td>The two Deployments of one app during PD, distinguished by the active-colour annotation.</td></tr>
+          <tr><td class="k">Logical app</td><td>The single, stable app Sedai tracks in place of a blue/green pair, so history and settings survive a flip.</td></tr>
+          <tr><td class="k">Cutover / overlap window</td><td>The period when both colours carry the same active value. Sedai treats this as a deployment in progress and pauses actions.</td></tr>
+          <tr><td class="k">DATA_PILOT</td><td>A Sedai mode in which it observes and recommends but takes no autonomous action.</td></tr>
+        </tbody>
+      </table></div></div>
+    </details>
+  </div>
+</section>
+
+<footer><p><strong>How Sedai supports Expedia’s progressive deployment</strong> &middot; behaviour reference &middot; 19 October 2026</p><p>Describes current Sedai behaviour for blue/green Deployments and annotation-driven settings.</p></footer>
+</div>
+
+</body></html>
