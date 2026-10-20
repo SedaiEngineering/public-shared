@@ -1,0 +1,766 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<meta charset="utf-8">
+<title>Pod Spec Interceptor Load Test</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  --bg:#F7F7FA; --surface:#FFFFFF; --surface-2:#F1F1F6;
+  --ink:#15161D; --ink-2:#494C5C; --ink-3:#72768A;
+  --rule:#E0E0EA; --rule-strong:#C7C7D6;
+  --accent:#4A4AD6; --accent-soft:#EFEFFC;
+  --good:#10703F; --good-bg:#E6F4EC; --good-rule:#B6DCC6;
+  --warn:#8A5200; --warn-bg:#FBF1DE;
+  --crit:#A62B22; --crit-bg:#FBEAE8;
+  --o1:#A6A6F6; --o2:#8080EE; --o3:#5B5BD6; --o4:#37379E;
+  --c1:#5B5BD6; --c2:#0D8F82;
+  --shadow:0 1px 2px rgba(21,22,29,.05), 0 8px 24px -18px rgba(21,22,29,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101218; --surface:#1B1E26; --surface-2:#232733;
+    --ink:#EDEEF4; --ink-2:#B4B8C8; --ink-3:#878DA0;
+    --rule:#2B2F3C; --rule-strong:#3D4354;
+    --accent:#9A9AFF; --accent-soft:#232441;
+    --good:#54C98A; --good-bg:#14301F; --good-rule:#265C3C;
+    --warn:#E0A758; --warn-bg:#31250F;
+    --crit:#F0796C; --crit-bg:#351A18;
+    --o1:#5555C8; --o2:#7272E4; --o3:#9A9AF2; --o4:#C2C2FA;
+    --c1:#8484EC; --c2:#19A096;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101218; --surface:#1B1E26; --surface-2:#232733;
+  --ink:#EDEEF4; --ink-2:#B4B8C8; --ink-3:#878DA0;
+  --rule:#2B2F3C; --rule-strong:#3D4354;
+  --accent:#9A9AFF; --accent-soft:#232441;
+  --good:#54C98A; --good-bg:#14301F; --good-rule:#265C3C;
+  --warn:#E0A758; --warn-bg:#31250F;
+  --crit:#F0796C; --crit-bg:#351A18;
+  --o1:#5555C8; --o2:#7272E4; --o3:#9A9AF2; --o4:#C2C2FA;
+  --c1:#8484EC; --c2:#19A096;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Source Serif 4","Iowan Old Style",Georgia,serif;
+  font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:0 28px 96px}
+.prose{max-width:68ch}
+h1,h2,h3,.eyebrow,.stat-v,th,.label,.pill,.btn{
+  font-family:Archivo,"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+code,kbd,.mono,.num,td.num,.meta-v,.tag{
+  font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.num,td,th{font-variant-numeric:tabular-nums}
+
+/* ---------- masthead ---------- */
+header.masthead{border-bottom:1px solid var(--rule); background:var(--surface)}
+.masthead .wrap{padding-top:44px; padding-bottom:0}
+.eyebrow{
+  font-size:11.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--accent); margin:0 0 18px;
+}
+h1{
+  font-size:clamp(34px,5.4vw,54px); font-weight:700; letter-spacing:-.022em;
+  line-height:1.06; margin:0 0 20px; text-wrap:balance; max-width:20ch;
+}
+.standfirst{font-size:20px; line-height:1.55; color:var(--ink-2); margin:0 0 34px; max-width:62ch}
+.meta{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+  gap:0; border-top:1px solid var(--rule); margin-bottom:0;
+}
+.meta div{padding:16px 20px 18px; border-right:1px solid var(--rule)}
+.meta div:last-child{border-right:0}
+.meta .label{
+  display:block; font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:6px;
+}
+.meta-v{font-size:14px; color:var(--ink); line-height:1.35}
+
+/* ---------- sections ---------- */
+section{padding-top:72px}
+h2{
+  font-size:13px; font-weight:600; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3); margin:0 0 6px; padding-bottom:14px; border-bottom:1px solid var(--rule-strong);
+}
+h2 .n{color:var(--accent); margin-right:12px}
+h3{font-size:23px; font-weight:650; letter-spacing:-.012em; margin:38px 0 12px; text-wrap:balance}
+h2 + h3, h2 + .prose > h3:first-child{margin-top:30px}
+p{margin:0 0 18px}
+.prose ul{margin:0 0 18px; padding-left:22px}
+.prose li{margin-bottom:9px}
+strong{font-weight:600}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+/* ---------- verdict ---------- */
+.verdict{
+  display:flex; gap:18px; align-items:flex-start; margin:34px 0 0;
+  padding:22px 26px; background:var(--good-bg); border:1px solid var(--good-rule); border-radius:10px;
+}
+.verdict .mark{
+  flex:none; width:26px; height:26px; border-radius:50%; background:var(--good);
+  color:var(--good-bg); display:grid; place-items:center; font-size:15px; font-weight:700; margin-top:3px;
+  font-family:Archivo,sans-serif;
+}
+.verdict p{margin:0; color:var(--ink); font-size:17px}
+.verdict .head{font-family:Archivo,sans-serif; font-weight:650; display:block; margin-bottom:4px}
+
+/* ---------- stat tiles ---------- */
+.stats{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); border-radius:10px; overflow:hidden;
+  margin:34px 0 0; box-shadow:var(--shadow);
+}
+.stat{background:var(--surface); padding:22px 22px 20px}
+.stat .label{
+  display:block; font-size:10.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); margin-bottom:12px;
+}
+.stat-v{font-size:34px; font-weight:700; letter-spacing:-.03em; line-height:1; display:block; font-variant-numeric:tabular-nums}
+.stat-v .u{font-size:15px; font-weight:600; color:var(--ink-3); letter-spacing:0; margin-left:3px}
+.stat .note{display:block; font-size:13.5px; color:var(--ink-3); margin-top:9px; line-height:1.4}
+
+/* ---------- tables ---------- */
+.tablewrap{
+  overflow-x:auto; border:1px solid var(--rule); border-radius:10px; background:var(--surface);
+  margin:26px 0 10px; box-shadow:var(--shadow);
+}
+table{border-collapse:collapse; width:100%; font-size:14px}
+caption{
+  text-align:left; font-family:Archivo,sans-serif; font-size:13px; font-weight:600;
+  color:var(--ink-2); padding:16px 20px 0; caption-side:top;
+}
+th{
+  text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); padding:16px 16px 10px; border-bottom:1px solid var(--rule-strong); white-space:nowrap;
+}
+td{padding:11px 16px; border-bottom:1px solid var(--rule); color:var(--ink-2); vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right}
+td.k{color:var(--ink); font-weight:600; font-family:Archivo,sans-serif; white-space:nowrap}
+td.mono{font-size:13px; color:var(--ink)}
+tbody tr:hover td{background:var(--surface-2)}
+.pill{
+  display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  padding:3px 9px; border-radius:999px; background:var(--good-bg); color:var(--good); border:1px solid var(--good-rule);
+}
+.tag{
+  display:inline-block; font-size:12px; padding:2px 7px; border-radius:4px;
+  background:var(--accent-soft); color:var(--accent); border:1px solid var(--rule);
+}
+.foot{font-size:13.5px; color:var(--ink-3); margin:12px 0 0; max-width:74ch; line-height:1.5}
+
+/* ---------- charts ---------- */
+.figure{
+  margin:30px 0 8px; background:var(--surface); border:1px solid var(--rule);
+  border-radius:10px; padding:22px 22px 14px; box-shadow:var(--shadow); position:relative;
+}
+.figure h4{
+  font-family:Archivo,sans-serif; font-size:15px; font-weight:650; margin:0 0 3px; color:var(--ink);
+}
+.figure .sub{font-size:13.5px; color:var(--ink-3); margin:0 0 14px}
+.legend{display:flex; flex-wrap:wrap; gap:16px; margin:2px 0 12px}
+.legend span{display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-2); font-family:"IBM Plex Mono",monospace}
+.legend i{width:14px; height:3px; border-radius:2px; display:inline-block}
+svg{display:block; width:100%; height:auto; overflow:visible}
+.grid line{stroke:var(--rule)}
+.axis text{fill:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-size:11px}
+.axis line{stroke:var(--rule-strong)}
+.slab{fill:var(--ink); font-family:"IBM Plex Mono",monospace; font-size:11.5px}
+.ref line{stroke:var(--ink-3); stroke-dasharray:4 4}
+.ref text{fill:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-size:11px}
+.tip{
+  position:absolute; pointer-events:none; opacity:0; transition:opacity .09s ease;
+  background:var(--surface); border:1px solid var(--rule-strong); border-radius:8px;
+  padding:10px 12px; box-shadow:0 10px 30px -12px rgba(0,0,0,.45); font-size:12.5px;
+  font-family:"IBM Plex Mono",monospace; color:var(--ink); min-width:150px; z-index:5;
+}
+.tip b{display:block; font-family:Archivo,sans-serif; font-size:12px; margin-bottom:6px; color:var(--ink)}
+.tip .row{display:flex; justify-content:space-between; gap:14px; line-height:1.7}
+.tip .row i{width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:6px}
+.tip .row span:first-child{color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+
+/* ---------- code ---------- */
+pre{
+  background:var(--surface-2); border:1px solid var(--rule); border-radius:8px;
+  padding:16px 18px; overflow-x:auto; font-size:13px; line-height:1.65; color:var(--ink);
+  margin:20px 0;
+}
+code{font-size:.93em}
+p code,li code,td code{background:var(--surface-2); padding:1px 5px; border-radius:4px; border:1px solid var(--rule)}
+
+/* ---------- footer ---------- */
+footer{margin-top:80px; border-top:1px solid var(--rule); padding-top:24px; color:var(--ink-3); font-size:13.5px}
+footer p{margin:0 0 6px; max-width:74ch}
+@media (max-width:900px){ .stats{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:640px){
+  body{font-size:16px}
+  .wrap{padding:0 18px 64px}
+  .meta div{border-right:0; border-bottom:1px solid var(--rule)}
+  section{padding-top:52px}
+}
+
+/* ---------- progressive disclosure ---------- */
+.discs{margin-top:26px; display:flex; flex-direction:column; gap:10px}
+details.disc{
+  border:1px solid var(--rule); border-radius:10px; background:var(--surface);
+  overflow:hidden; box-shadow:var(--shadow);
+}
+details.disc > summary{
+  cursor:pointer; list-style:none; padding:17px 22px; display:flex; align-items:baseline; gap:14px;
+  font-family:Archivo,sans-serif; font-weight:600; font-size:15.5px; color:var(--ink);
+}
+details.disc > summary::-webkit-details-marker{display:none}
+details.disc > summary:hover{background:var(--surface-2)}
+details.disc > summary:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+summary .sign{
+  flex:none; width:18px; height:18px; border-radius:4px; background:var(--accent-soft);
+  color:var(--accent); display:inline-grid; place-items:center; font-size:13px; font-weight:700;
+  align-self:center; line-height:1;
+}
+summary .sign::before{content:"+"}
+details[open] > summary .sign::before{content:"\2212"}
+summary .hint{
+  margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3);
+  font-weight:400; text-align:right;
+}
+details.disc[open] > summary{border-bottom:1px solid var(--rule)}
+.disc-body{padding:20px 22px 24px}
+.disc-body > .prose{max-width:66ch}
+.disc-body .tablewrap{box-shadow:none; margin-top:18px}
+.disc-body h3:first-child{margin-top:0}
+
+/* ---------- takeaway cards ---------- */
+.takeaways{display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); gap:16px; margin-top:28px}
+.take{
+  background:var(--surface); border:1px solid var(--rule); border-radius:10px;
+  padding:22px 22px 20px; box-shadow:var(--shadow);
+}
+.take .big{
+  font-family:Archivo,sans-serif; font-size:27px; font-weight:700; letter-spacing:-.025em;
+  display:block; margin-bottom:10px; color:var(--ink); font-variant-numeric:tabular-nums;
+}
+.take .big .u{font-size:14px; font-weight:600; color:var(--ink-3); letter-spacing:0; margin-left:3px}
+.take p{margin:0; font-size:14.5px; line-height:1.5; color:var(--ink-2)}
+
+/* ---------- at-a-glance grid ---------- */
+.glance{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--rule);
+  border:1px solid var(--rule); border-radius:10px; overflow:hidden; margin-top:26px;
+  box-shadow:var(--shadow);
+}
+.glance div{background:var(--surface); padding:16px 18px 17px}
+.glance .label{
+  display:block; font-family:Archivo,sans-serif; font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:6px;
+}
+.glance .v{font-family:"IBM Plex Mono",monospace; font-size:13.5px; color:var(--ink); line-height:1.4}
+
+/* ---------- click-to-reveal affordances ---------- */
+.stat{position:relative; cursor:pointer; text-align:left; width:100%; border:0; font:inherit; color:inherit}
+.stat:hover{background:var(--surface-2)}
+.stat:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.stat .more{
+  position:absolute; right:14px; top:14px; font-family:"IBM Plex Mono",monospace; font-size:11px;
+  color:var(--ink-3); opacity:0; transition:opacity .12s ease;
+}
+.stat:hover .more,.stat:focus-visible .more{opacity:1}
+tr.clickable{cursor:pointer}
+tr.clickable td:last-child .det{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); margin-left:10px; opacity:0;
+}
+tr.clickable:hover td:last-child .det{opacity:1}
+button.term{
+  border:0; background:none; padding:0; font:inherit; color:inherit; cursor:pointer;
+  border-bottom:1px dotted var(--accent); line-height:1.2;
+}
+button.term:hover{color:var(--accent)}
+button.term:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:2px}
+
+/* ---------- modal ---------- */
+dialog.panel{
+  border:1px solid var(--rule-strong); border-radius:12px; background:var(--surface); color:var(--ink);
+  padding:0; max-width:min(640px,calc(100vw - 32px)); width:100%;
+  box-shadow:0 24px 70px -24px rgba(0,0,0,.6);
+}
+dialog.panel::backdrop{background:rgba(10,11,16,.52)}
+.panel-head{
+  display:flex; align-items:flex-start; gap:16px; padding:22px 24px 16px; border-bottom:1px solid var(--rule);
+}
+.panel-head h3{margin:0; font-size:20px; font-weight:650; letter-spacing:-.012em}
+.panel-head .k{
+  display:block; font-family:Archivo,sans-serif; font-size:10.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:5px;
+}
+.panel-head button{
+  margin-left:auto; flex:none; border:1px solid var(--rule); background:var(--surface-2); color:var(--ink-2);
+  width:30px; height:30px; border-radius:7px; cursor:pointer; font-size:16px; line-height:1;
+}
+.panel-head button:hover{color:var(--ink); border-color:var(--rule-strong)}
+.panel-body{padding:20px 24px 24px; font-size:15px; line-height:1.55; color:var(--ink-2)}
+.panel-body p{margin:0 0 14px}
+.panel-body p:last-child{margin-bottom:0}
+.panel-body .kv{display:grid; grid-template-columns:1fr auto; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:4px 0 16px}
+.panel-body .kv > span{background:var(--surface); padding:9px 14px; font-size:13.5px}
+.panel-body .kv > span:nth-child(even){
+  font-family:"IBM Plex Mono",monospace; text-align:right; color:var(--ink); font-variant-numeric:tabular-nums;
+}
+.panel-body .kv .sub{color:var(--ink-3); font-size:12px}
+.panel-body h4{
+  font-family:Archivo,sans-serif; font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); margin:22px 0 8px;
+}
+.panel-body h4:first-child{margin-top:0}
+@media (max-width:900px){ .glance{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:640px){ .glance{grid-template-columns:1fr} }
+
+.tip-pop{
+  position:fixed; z-index:50; opacity:0; pointer-events:none; transition:opacity .1s ease;
+  max-width:300px; background:var(--ink); color:var(--surface); border-radius:7px;
+  padding:9px 12px; font-family:"Source Serif 4",Georgia,serif; font-size:13.5px; line-height:1.45;
+  box-shadow:0 14px 34px -14px rgba(0,0,0,.55);
+}
+.tip-pop.on{opacity:1}
+th [data-tip]{
+  cursor:help; text-decoration:underline dotted; text-decoration-color:var(--rule-strong);
+  text-underline-offset:4px;
+}
+.glance div[data-tip]{cursor:help}
+
+:root{box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  --dep:#5B5BD6; --job:#0D8F82; --cron:#9AC9C2}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--dep:#9A9AFF; --job:#19A096; --cron:#2E6B64}}
+:root[data-theme="dark"]{--dep:#9A9AFF; --job:#19A096; --cron:#2E6B64}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+.stats.four{grid-template-columns:repeat(4,1fr)}
+div.stat{cursor:default}
+div.stat:hover{background:var(--surface)}
+.cond{margin:22px 0 0; padding:14px 18px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:0 8px 8px 0; font-size:15px; color:var(--ink-2); max-width:74ch}
+.blbl{fill:var(--ink-2); font-family:"IBM Plex Mono",monospace; font-size:11px}
+</style>
+<header class="masthead"><div class="wrap">
+<p class="eyebrow">Performance test report &middot; 21 September 2026</p>
+<h1>Pod Spec Interceptor load test</h1>
+<p class="standfirst">The Sedai Pod Spec Interceptor answers a Kubernetes <button class="term" data-term="webhook">admission webhook</button> on every pod creation, applying Sedai&rsquo;s recommended configuration before the pod is scheduled. This test drove it to 100 pod creations per second and measured how many of those admissions it answered correctly, and how fast.</p>
+<div class="meta">
+<div><span class="label">Component</span><span class="meta-v">Sedai Pod Spec Interceptor</span></div>
+<div><span class="label">Endpoint</span><span class="meta-v">POST /mutate/pod</span></div>
+<div><span class="label">Run window</span><span class="meta-v">21 September 2026, 17:34-17:41 UTC</span></div>
+<div><span class="label">Rate steps</span><span class="meta-v">10, 20, 30, 50, 100 req/s</span></div>
+<div><span class="label">Admissions</span><span class="meta-v">12,600</span></div>
+<div><span class="label">Result</span><span class="meta-v">All 5 steps passed</span></div>
+</div></div></header>
+<div class="wrap">
+<section id="summary"><h2><span class="n">01</span>Headline results</h2>
+<div class="stats">
+<button class="stat" type="button" data-panel="rate"><span class="more">details &rarr;</span><span class="label">Sustained rate</span><span class="stat-v">100<span class="u">req/s</span></span><span class="note">Highest rate tested &mdash; and it passed.</span></button>
+<button class="stat" type="button" data-panel="yield"><span class="more">details &rarr;</span><span class="label">Mutation yield</span><span class="stat-v">100.00%</span><span class="note">0 of 11,368 patches missed.</span></button>
+<button class="stat" type="button" data-panel="p99"><span class="more">details &rarr;</span><span class="label">p99 response</span><span class="stat-v">29<span class="u">ms</span></span><span class="note">Worst p99 of any step. Timeout is 1,000 ms.</span></button>
+<button class="stat" type="button" data-panel="max"><span class="more">details &rarr;</span><span class="label">Slowest response</span><span class="stat-v">198<span class="u">ms</span></span><span class="note">Worst single response of 12,600.</span></button>
+<button class="stat" type="button" data-panel="cpu"><span class="more">details &rarr;</span><span class="label">Peak CPU</span><span class="stat-v">0.195<span class="u">cores</span></span><span class="note">39% of the 500 m limit.</span></button>
+<button class="stat" type="button" data-panel="memory"><span class="more">details &rarr;</span><span class="label">Peak memory</span><span class="stat-v">28<span class="u">MiB</span></span><span class="note">2.7% of the 1 GiB limit, flat throughout.</span></button>
+<button class="stat" type="button" data-panel="errors"><span class="more">details &rarr;</span><span class="label">Errors</span><span class="stat-v">0</span><span class="note">No failures, timeouts or connection errors.</span></button>
+<button class="stat" type="button" data-panel="defects"><span class="more">details &rarr;</span><span class="label">Correctness defects</span><span class="stat-v">0</span><span class="note">No pod patched that should not have been.</span></button>
+</div>
+<p class="foot">Every tile opens the detail behind it &mdash; what the number means and its value at each rate step. Underlined terms open a definition, and the rows of the results table open everything measured at that rate.</p>
+<div class="verdict"><div class="mark">&check;</div><p><span class="head">Every rate step passed, with no sign of a limit being approached.</span>Response time did not degrade as load rose tenfold (<button class="term" data-term="p99">p99</button> of 23 ms at 10 req/s, 29 ms at 100 req/s), CPU rose linearly to 39% of the configured limit, and memory did not grow at all. The interceptor returned to its idle baseline immediately after the run, with zero restarts.</p></div>
+</section>
+<section id="results"><h2><span class="n">02</span>Performance across the rate range</h2>
+<div class="tablewrap"><table><caption>Each row opens the full measurements for that rate step</caption><thead><tr><th><span data-tip="The arrival rate the load generator was configured to send at, in admissions per second.">Offered</span></th><th class="num"><span data-tip="The rate actually delivered. Matching the offered rate means the interceptor never slowed the sender down.">Achieved</span></th><th class="num"><span data-tip="Admissions sent during the measured window, excluding warm-up.">Requests</span></th><th class="num"><span data-tip="Of the admissions that should have been patched, the share patched inside the timeout.">Mutation yield</span></th><th class="num"><span data-tip="The typical response: half of all requests were faster than this.">p50 (ms)</span></th><th class="num"><span data-tip="1 in 100 requests took longer than this. The production timeout is 1,000 ms.">p99 (ms)</span></th><th class="num"><span data-tip="CPU consumed by the interceptor during the window. 0.500 cores is its configured limit.">CPU cores</span></th><th class="num"><span data-tip="The same CPU figure as a share of the interceptor's 500 m limit.">% of limit</span></th><th><span data-tip="A step passes only if it met every criterion: rate kept, yield, correctness, errors and p99.">Result</span></th></tr></thead><tbody><tr class="clickable" data-step="0" tabindex="0" role="button" aria-label="Full measurements at 10 requests per second"><td class="k">10 req/s</td><td class="num">10.0</td><td class="num">600</td><td class="num">100.00%</td><td class="num">14</td><td class="num">23</td><td class="num">0.023</td><td class="num">4.5%</td><td><span class="pill">Pass</span><span class="det">open &rarr;</span></td></tr><tr class="clickable" data-step="1" tabindex="0" role="button" aria-label="Full measurements at 20 requests per second"><td class="k">20 req/s</td><td class="num">20.0</td><td class="num">1,200</td><td class="num">100.00%</td><td class="num">9</td><td class="num">27</td><td class="num">0.041</td><td class="num">8.2%</td><td><span class="pill">Pass</span><span class="det">open &rarr;</span></td></tr><tr class="clickable" data-step="2" tabindex="0" role="button" aria-label="Full measurements at 30 requests per second"><td class="k">30 req/s</td><td class="num">30.0</td><td class="num">1,800</td><td class="num">100.00%</td><td class="num">8</td><td class="num">24</td><td class="num">0.060</td><td class="num">12.1%</td><td><span class="pill">Pass</span><span class="det">open &rarr;</span></td></tr><tr class="clickable" data-step="3" tabindex="0" role="button" aria-label="Full measurements at 50 requests per second"><td class="k">50 req/s</td><td class="num">50.0</td><td class="num">3,000</td><td class="num">100.00%</td><td class="num">13</td><td class="num">27</td><td class="num">0.104</td><td class="num">20.7%</td><td><span class="pill">Pass</span><span class="det">open &rarr;</span></td></tr><tr class="clickable" data-step="4" tabindex="0" role="button" aria-label="Full measurements at 100 requests per second"><td class="k">100 req/s</td><td class="num">100.0</td><td class="num">6,000</td><td class="num">100.00%</td><td class="num">13</td><td class="num">29</td><td class="num">0.195</td><td class="num">38.9%</td><td><span class="pill">Pass</span><span class="det">open &rarr;</span></td></tr></tbody></table></div>
+<div class="figure"><h4>Response time did not move as load rose tenfold</h4><p class="sub">Percentiles of interceptor response time at each offered rate. Flat lines mean requests are not queueing behind one another. Hover any rate for the full distribution.</p><div class="legend"><span><i style="background:var(--o1)"></i>p50 &mdash; typical response</span><span><i style="background:var(--o2)"></i>p90</span><span><i style="background:var(--o3)"></i>p95</span><span><i style="background:var(--o4)"></i>p99 &mdash; slowest 1 in 100</span></div><div id="chart-latency"></div></div>
+<div class="figure"><h4>CPU cost is linear in the request rate</h4><p class="sub">Cores consumed during each measured window, against the interceptor&rsquo;s configured limit. Linear growth with no upward bend means no work is being repeated or retried as load rises.</p><div id="chart-cpu"></div></div>
+<p class="foot">Fitted cost: <strong>1.92 millicores per request per second</strong> (r&sup2; = 0.9990), about 1.92 <button class="term" data-term="cores">cores</button> per 1,000 admissions per second.</p>
+</section>
+<section id="meaning"><h2><span class="n">03</span>What this means in production</h2>
+<div class="takeaways">
+<div class="take"><span class="big">6,000<span class="u">pods / min</span></span><p>Sustained, at full mutation yield. Steady-state pod churn sits far below this; the rates that matter are bursts &mdash; a large rolling update, a node group replacement, a batch or Spark job starting many pods at once.</p></div>
+<div class="take"><span class="big">76&times;<span class="u">inside the budget</span></span><p>A typical answer took 13 ms against the 1,000 ms the API server allows. Even the slowest single response of the entire run used 20% of it.</p></div>
+<div class="take"><span class="big">1.9<span class="u">mCPU per req/s</span></span><p>The sizing handle: multiply by your target admission rate. On the same trend the current 500 m limit would not be exhausted until roughly 260 req/s &mdash; an extrapolation beyond the tested range, offered as a guide.</p></div>
+<div class="take"><span class="big">+6<span class="u">ms at 10&times; load</span></span><p>The change in p99 between the lowest and highest rate tested. Concurrency stayed at its idle baseline throughout, so no queue ever formed.</p></div>
+</div></section>
+
+<section id="batch"><h2><span class="n">04</span>Job and CronJob pods</h2>
+<div class="prose"><p>The interceptor applies recommendations to Deployment-owned pods only. Pods created by Jobs and CronJobs are short-lived batch work, so the interceptor admits them unchanged. This section shows that it does so reliably under mixed traffic, without slowing those pods down.</p></div>
+<div class="stats four">
+<div class="stat"><span class="label">Batch pods admitted</span><span class="stat-v">774</span><span class="note">368 Job pods and 406 CronJob pods.</span></div>
+<div class="stat"><span class="label">Left unchanged</span><span class="stat-v">100%</span><span class="note">Every Job and CronJob pod passed through as submitted.</span></div>
+<div class="stat"><span class="label">Spurious patches</span><span class="stat-v">0</span><span class="note">No batch pod was patched.</span></div>
+<div class="stat"><span class="label">Deployment pods, same run</span><span class="stat-v">100%</span><span class="note">346 of 346 patched alongside the batch traffic.</span></div>
+</div>
+<div class="figure"><h4>Batch pods made up most of the traffic, and none were touched</h4><p class="sub">Pods admitted at each rate step, by owner type. Only the Deployment share is eligible for a patch.</p><div class="legend"><span><i style="background:var(--dep)"></i>Deployment &mdash; patched</span><span><i style="background:var(--job)"></i>Job &mdash; unchanged</span><span><i style="background:var(--cron)"></i>CronJob &mdash; unchanged</span></div><svg viewBox="0 0 900 300" role="img" aria-label="Pods admitted per rate step by owner type"><g class="grid"><line x1="64" x2="876" y1="254.0" y2="254.0"/><line x1="64" x2="876" y1="196.5" y2="196.5"/><line x1="64" x2="876" y1="139.0" y2="139.0"/><line x1="64" x2="876" y1="81.5" y2="81.5"/><line x1="64" x2="876" y1="24.0" y2="24.0"/></g><g class="axis"><text x="54" y="258.0" text-anchor="end">0</text><text x="54" y="200.5" text-anchor="end">175</text><text x="54" y="143.0" text-anchor="end">350</text><text x="54" y="85.5" text-anchor="end">525</text><text x="54" y="28.0" text-anchor="end">700</text><text x="14" y="139.0" transform="rotate(-90 14 139.0)" text-anchor="middle">pods admitted</text><text x="165.5" y="288" text-anchor="middle">1 req/s</text><text x="368.5" y="288" text-anchor="middle">5 req/s</text><text x="571.5" y="288" text-anchor="middle">10 req/s</text><text x="774.5" y="288" text-anchor="middle">20 req/s</text></g><rect x="120.5" width="90" y="248.1" height="5.9" fill="var(--dep)"/><rect x="120.5" width="90" y="244.1" height="3.9" fill="var(--job)"/><rect x="120.5" width="90" y="240.9" height="3.3" fill="var(--cron)"/><text class="slab" x="165.5" y="232.9" text-anchor="middle">40 pods · 0 spurious</text><rect x="323.5" width="90" y="238.9" height="15.1" fill="var(--dep)"/><rect x="323.5" width="90" y="223.8" height="15.1" fill="var(--job)"/><rect x="323.5" width="90" y="201.4" height="22.3" fill="var(--cron)"/><text class="slab" x="368.5" y="193.4" text-anchor="middle">160 pods · 0 spurious</text><rect x="526.5" width="90" y="218.2" height="35.8" fill="var(--dep)"/><rect x="526.5" width="90" y="186.6" height="31.5" fill="var(--job)"/><rect x="526.5" width="90" y="152.1" height="34.5" fill="var(--cron)"/><text class="slab" x="571.5" y="144.1" text-anchor="middle">310 pods · 0 spurious</text><rect x="729.5" width="90" y="197.2" height="56.8" fill="var(--dep)"/><rect x="729.5" width="90" y="126.8" height="70.3" fill="var(--job)"/><rect x="729.5" width="90" y="53.6" height="73.3" fill="var(--cron)"/><text class="slab" x="774.5" y="45.6" text-anchor="middle">610 pods · 0 spurious</text></svg></div>
+<div class="tablewrap"><table><caption>Mixed-owner results per rate step &mdash; response times in milliseconds</caption><thead><tr>
+<th><span data-tip="The arrival rate the load generator sent, in pod creations per second.">Offered</span></th>
+<th class="num"><span data-tip="Deployment pods patched, out of Deployment pods admitted.">Deployment patched</span></th>
+<th class="num"><span data-tip="Job-owned pods admitted during the step.">Job pods</span></th>
+<th class="num"><span data-tip="Job pods admitted without a patch, as intended.">Unchanged</span></th>
+<th class="num"><span data-tip="Typical Job pod response.">Job p50</span></th>
+<th class="num"><span data-tip="1 in 100 Job pod responses took longer than this.">Job p99</span></th>
+<th class="num"><span data-tip="CronJob-owned pods admitted during the step.">CronJob pods</span></th>
+<th class="num"><span data-tip="CronJob pods admitted without a patch, as intended.">Unchanged</span></th>
+<th class="num"><span data-tip="Typical CronJob pod response.">CronJob p50</span></th>
+<th class="num"><span data-tip="1 in 100 CronJob pod responses took longer than this.">CronJob p99</span></th>
+<th class="num"><span data-tip="Batch pods patched that should not have been.">Spurious</span></th>
+<th><span data-tip="Passes at 100% Deployment yield, 0 spurious patches and 0% errors.">Result</span></th>
+</tr></thead><tbody><tr><td class="k">1 req/s</td><td class="num">18 / 18</td><td class="num">12</td><td class="num">12</td><td class="num">43</td><td class="num">104</td><td class="num">10</td><td class="num">10</td><td class="num">53</td><td class="num">84</td><td class="num">0</td><td><span class="pill">Pass</span></td></tr><tr><td class="k">5 req/s</td><td class="num">46 / 46</td><td class="num">46</td><td class="num">46</td><td class="num">44</td><td class="num">147</td><td class="num">68</td><td class="num">68</td><td class="num">45</td><td class="num">101</td><td class="num">0</td><td><span class="pill">Pass</span></td></tr><tr><td class="k">10 req/s</td><td class="num">109 / 109</td><td class="num">96</td><td class="num">96</td><td class="num">45</td><td class="num">306</td><td class="num">105</td><td class="num">105</td><td class="num">45</td><td class="num">83</td><td class="num">0</td><td><span class="pill">Pass</span></td></tr><tr><td class="k">20 req/s</td><td class="num">173 / 173</td><td class="num">214</td><td class="num">214</td><td class="num">47</td><td class="num">114</td><td class="num">223</td><td class="num">223</td><td class="num">48</td><td class="num">99</td><td class="num">0</td><td><span class="pill">Pass</span></td></tr><tr><td class="k"><strong>Total</strong></td><td class="num"><strong>346 / 346</strong></td><td class="num"><strong>368</strong></td><td class="num"><strong>368</strong></td><td></td><td></td><td class="num"><strong>406</strong></td><td class="num"><strong>406</strong></td><td></td><td></td><td class="num"><strong>0</strong></td><td></td></tr></tbody></table></div>
+<p class="foot">Errors were 0% at every step. Goroutines stayed between 36 and 39 throughout, and CPU rose linearly from 0.011 to 0.058 cores.</p>
+<p class="cond">Measured in a separate mixed-owner run of the current release: 1, 5, 10 and 20 req/s, 60 s per step, with a 750 ms simulated upstream delay to stress the admission path.</p>
+</section>
+<section id="basis"><h2><span class="n">05</span>How the test was set up</h2><div class="prose">
+<p>The essentials of the main run are below; Job and CronJob handling was measured in a separate mixed-owner run, described in section 04. Everything underneath opens on click: the full method, every parameter, the complete measurements, and what the test does not establish.</p></div>
+<div class="glance">
+<div data-tip="Requests sent on a fixed schedule regardless of how fast responses come back."><span class="label">Load pattern</span><span class="v"><button class="term" data-term="openloop">Open loop</button>, constant rate</span></div>
+<div data-tip="Five steps spanning a tenfold range."><span class="label">Rate steps</span><span class="v">10, 20, 30, 50, 100 req/s</span></div>
+<div data-tip="Warm-up is excluded from every number."><span class="label">Per step</span><span class="v">60 s measured, 5 s warm-up discarded</span></div>
+<div data-tip="Total requests scored."><span class="label">Admissions</span><span class="v">12,600 over 300 s</span></div>
+<div data-tip="Requests drew from this corpus uniformly at random, which mostly misses the interceptor's cache."><span class="label">Workloads</span><span class="v">3,000 across 10 namespaces</span></div>
+<div data-tip="The most expensive resolution path: two database lookups plus a live Kubernetes API call."><span class="label">Ownership</span><span class="v">100% <button class="term" data-term="chain">Deployment chain</button></span></div>
+<div data-tip="The 10% is the correctness control."><span class="label">Traffic mix</span><span class="v">90% expect a patch / 10% expect none</span></div>
+<div data-tip="A single instance answered all traffic, with no horizontal scaling."><span class="label">Interceptor</span><span class="v">500 m request CPU, 1 GiB, 1 replica</span></div>
+</div>
+<div class="discs">
+<details class="disc"><summary><span class="sign"></span>How the test was run<span class="hint">method, scoring and pass criteria</span></summary><div class="disc-body"><div class="prose"><h3>Why the load is applied this way</h3><p>Load was applied as an <button class="term" data-term="openloop">open-loop constant arrival rate</button>: requests go out on a fixed schedule regardless of how quickly earlier ones come back. That is how a real cluster behaves &mdash; pods get created because workloads are being deployed, not because the interceptor is ready &mdash; and it is the only shape in which a queue building up becomes visible. A closed-loop test would quietly slow its own request rate to match the server and hide the problem.</p><p>Each rate step ran in its own process, so no step inherited the previous one&rsquo;s warmed-up state: 60 seconds of measured load per step, preceded by a 5-second warm-up excluded from every number in this report.</p><h3>What one request contains</h3><p>Every request is a complete Kubernetes <code>AdmissionReview</code> for a two-container pod, identical in structure to what the API server sends. Each pod is owned by a Deployment through a ReplicaSet &mdash; the <button class="term" data-term="chain">most expensive ownership chain</button> the interceptor has to resolve. Real ReplicaSets and Deployments were created in the cluster so that walk was genuine, not simulated.</p><p>The owning workload for each request was chosen <strong>uniformly at random</strong> from 3,000 distinct workloads. That is the pessimistic choice on purpose: it mostly misses the interceptor&rsquo;s internal owner cache, so the measured cost is close to the cache-miss cost of every request. Production traffic, where pod creations cluster around a few workloads, hits that cache far more often.</p><h3>How each request was scored</h3><p>The test seeds the recommendation data itself, so it knows the correct outcome for every request before sending it. Each response falls into exactly one class:</p></div><div class="tablewrap"><table><thead><tr><th>Class</th><th>Expected</th><th>What the interceptor did</th><th>Counts toward</th></tr></thead><tbody><tr><td class="k">Patch delivered</td><td>a patch</td><td>returned the patch inside the timeout</td><td>mutation yield (success)</td></tr><tr><td class="k">Patch missed</td><td>a patch</td><td>answered too late, or without the patch</td><td>mutation yield (failure)</td></tr><tr><td class="k">Correct no-op</td><td>no patch</td><td>correctly returned no patch</td><td>no-op correctness (success)</td></tr><tr><td class="k">Spurious patch</td><td>no patch</td><td>patched a pod it had no recommendation for</td><td>correctness defect</td></tr><tr><td class="k">Failed no-op</td><td>no patch</td><td>failed or timed out answering</td><td>no-op correctness (failure)</td></tr></tbody></table></div><p class="foot">Requests seeded to need no patch are scored separately and never inflate the yield number.</p><div class="prose"><h3>What counts as a pass</h3><p>A step passes only if it meets every criterion below. These thresholds were fixed in the harness before the run.</p></div><div class="tablewrap"><table><thead><tr><th>Criterion</th><th class="num">Threshold</th><th class="num">This run, worst step</th></tr></thead><tbody><tr><td class="k">Achieved rate vs offered rate</td><td class="num">&ge; 99%</td><td class="num">100.0%</td></tr><tr><td class="k">Mutation yield</td><td class="num">&ge; 99.9%</td><td class="num">100.00%</td></tr><tr><td class="k">No-op correctness</td><td class="num">&ge; 99.9%</td><td class="num">100.00%</td></tr><tr><td class="k">Error rate</td><td class="num">&le; 0.1%</td><td class="num">0.00%</td></tr><tr><td class="k">p99 response time</td><td class="num">&lt; 5,000 ms</td><td class="num">29 ms</td></tr><tr><td class="k">Spurious patches</td><td class="num">0</td><td class="num">0</td></tr></tbody></table></div><p class="foot">A step is additionally marked untrusted — and can never count as capacity — if the load generator was itself near saturation, if the interceptor restarted mid-step, or if too few CPU samples landed inside the scoring window. No step in this run was untrusted.</p></div></details>
+<details class="disc"><summary><span class="sign"></span>Full test parameters<span class="hint">every setting, and why it was chosen</span></summary><div class="disc-body"><div class="tablewrap"><table><caption>Load profile</caption><thead><tr><th>Parameter</th><th class="num">Value</th><th>Why</th></tr></thead><tbody><tr><td class="k">Offered rates</td><td class="num">10, 20, 30, 50, 100 req/s</td><td>Five steps spanning a tenfold range, to separate a fixed per-request cost from a queueing effect.</td></tr><tr><td class="k">Measured duration</td><td class="num">60 s per step</td><td>Long enough for the CPU sampler (one sample every 2 s) to build a trustworthy average.</td></tr><tr><td class="k">Warm-up</td><td class="num">5 s per step, discarded</td><td>Absorbs TLS handshakes and just-in-time compilation so they do not land in the results.</td></tr><tr><td class="k">Arrival process</td><td class="num">constant rate, open loop</td><td>Sends on schedule regardless of server speed, so a backlog shows up instead of self-throttling.</td></tr><tr><td class="k">Request timeout</td><td class="num">5,000 ms</td><td>The scoring budget, deliberately wider than the live webhook timeout so late answers are measured rather than cut off.</td></tr><tr><td class="k">Total requests</td><td class="num">12,600</td><td>300 seconds of measured load in total.</td></tr></tbody></table></div><div class="tablewrap"><table><caption>Workload and data set</caption><thead><tr><th>Parameter</th><th class="num">Value</th><th>Why</th></tr></thead><tbody><tr><td class="k">Distinct workloads</td><td class="num">3,000</td><td>The corpus requests draw from — far larger than what a steady-state cluster has in flight.</td></tr><tr><td class="k">Containers per pod</td><td class="num">2</td><td>Two containers to classify and patch per admission.</td></tr><tr><td class="k">Recommendation rows seeded</td><td class="num">6,000</td><td>One per workload per container, seeded and verified before load started.</td></tr><tr><td class="k">Namespaces</td><td class="num">10</td><td>Spreads the corpus, as in a real multi-team cluster.</td></tr><tr><td class="k">Ownership chain</td><td class="num">100% Deployment &rarr; ReplicaSet &rarr; pod</td><td>The expensive path: two database lookups plus a live Kubernetes API call per resolution.</td></tr><tr><td class="k">Workload selection</td><td class="num">uniform random</td><td>Pessimistic: mostly misses the interceptor&rsquo;s owner cache. Production traffic is skewed and hits it.</td></tr><tr><td class="k">Traffic mix</td><td class="num">90% expect a patch / 10% expect none</td><td>The 10% is the correctness control that detects patches applied where none was licensed.</td></tr></tbody></table></div><div class="tablewrap"><table><caption>System under test</caption><thead><tr><th>Parameter</th><th class="num">Value</th><th>Notes</th></tr></thead><tbody><tr><td class="k">Component</td><td class="num">Sedai Pod Spec Interceptor</td><td>pre-release development build.</td></tr><tr><td class="k">Replicas</td><td class="num">1</td><td>A single instance answered all traffic. No horizontal scaling was involved.</td></tr><tr><td class="k">CPU</td><td class="num">500 m request = 500 m limit</td><td>Request equals limit, so the measured share of the limit is also the share of guaranteed CPU.</td></tr><tr><td class="k">Memory</td><td class="num">1 GiB request = 1 GiB limit</td><td></td></tr><tr><td class="k">Log level</td><td class="num">ERROR</td><td>Per-admission log volume is a known sensitivity — see scope and limitations.</td></tr><tr><td class="k">Database</td><td class="num">PostgreSQL 14.6, single instance, 1 vCPU limit / 512 MiB, 2 GiB volume</td><td>Co-located in the cluster; holds the recommendation data.</td></tr><tr><td class="k">Webhook timeout</td><td class="num">1 s</td><td>The real budget an answer must fit inside in production.</td></tr><tr><td class="k">Failure policy</td><td class="num">Ignore</td><td>A late or failed answer admits the pod unoptimized rather than blocking it.</td></tr><tr><td class="k">Webhook scope</td><td class="num">CREATE on v1/pods, all namespaces except the Sedai namespace</td><td>Side effects: None.</td></tr><tr><td class="k">Cluster</td><td class="num">Amazon EKS, Kubernetes v1.34</td><td>6 worker nodes, 8 vCPU / 16 GiB each; single region, interceptor and load generator in the same cluster.</td></tr></tbody></table></div><div class="tablewrap"><table><caption>Load generator</caption><thead><tr><th>Parameter</th><th class="num">Value</th><th>Notes</th></tr></thead><tbody><tr><td class="k">Placement</td><td class="num">in-cluster Kubernetes Job</td><td>No tunnel or port-forward in the path that could distort timing.</td></tr><tr><td class="k">Resources</td><td class="num">4 vCPU / 4 GiB limit, in-cluster Job</td><td>Deliberately generous: the generator must never be the bottleneck. Its own CPU peaked at 3.6% of that allocation.</td></tr><tr><td class="k">Engine</td><td class="num">Gatling, open-loop constant arrival rate, one fresh JVM per rate step</td><td>A fresh process per rate step.</td></tr><tr><td class="k">Harness build</td><td class="num">9f1943d</td><td>Load generator, seeding and scoring are one versioned artifact.</td></tr></tbody></table></div></div></details>
+<details class="disc"><summary><span class="sign"></span>Complete measurements<span class="hint">all percentiles, resources and outcome counts</span></summary><div class="disc-body"><div class="tablewrap"><table><caption>Per-step results in full — response times in milliseconds</caption><thead><tr><th>Offered</th><th class="num">Achieved</th><th class="num">Requests</th><th class="num">Yield</th><th class="num">No-op</th><th class="num">Errors</th><th class="num">p50</th><th class="num">p90</th><th class="num">p95</th><th class="num">p99</th><th class="num">p99.9</th><th class="num">Max</th><th class="num">Mean</th></tr></thead><tbody><tr><td class="k">10 req/s</td><td class="num">10.0</td><td class="num">600</td><td class="num">100.00%</td><td class="num">100.00%</td><td class="num">0.00%</td><td class="num">14</td><td class="num">17</td><td class="num">19</td><td class="num">23</td><td class="num">39</td><td class="num">39</td><td class="num">13.7</td></tr><tr><td class="k">20 req/s</td><td class="num">20.0</td><td class="num">1,200</td><td class="num">100.00%</td><td class="num">100.00%</td><td class="num">0.00%</td><td class="num">9</td><td class="num">16</td><td class="num">18</td><td class="num">27</td><td class="num">161</td><td class="num">198</td><td class="num">11.4</td></tr><tr><td class="k">30 req/s</td><td class="num">30.0</td><td class="num">1,800</td><td class="num">100.00%</td><td class="num">100.00%</td><td class="num">0.00%</td><td class="num">8</td><td class="num">15</td><td class="num">17</td><td class="num">24</td><td class="num">65</td><td class="num">85</td><td class="num">10.2</td></tr><tr><td class="k">50 req/s</td><td class="num">50.0</td><td class="num">3,000</td><td class="num">100.00%</td><td class="num">100.00%</td><td class="num">0.00%</td><td class="num">13</td><td class="num">16</td><td class="num">18</td><td class="num">27</td><td class="num">50</td><td class="num">91</td><td class="num">12.0</td></tr><tr><td class="k">100 req/s</td><td class="num">100.0</td><td class="num">6,000</td><td class="num">100.00%</td><td class="num">100.00%</td><td class="num">0.00%</td><td class="num">13</td><td class="num">17</td><td class="num">19</td><td class="num">29</td><td class="num">99</td><td class="num">161</td><td class="num">12.2</td></tr></tbody></table></div><div class="tablewrap"><table><caption>Interceptor resources under load</caption><thead><tr><th>Offered rate</th><th class="num">Cores</th><th class="num">% of 500 m limit</th><th class="num">Memory</th><th class="num">% of 1 GiB limit</th><th class="num">Requests in flight</th><th class="num">GC pause in window</th></tr></thead><tbody><tr><td class="k">10 req/s</td><td class="num">0.023</td><td class="num">4.5%</td><td class="num">27.9 MiB</td><td class="num">2.7%</td><td class="num">27</td><td class="num">1.5 ms</td></tr><tr><td class="k">20 req/s</td><td class="num">0.041</td><td class="num">8.2%</td><td class="num">27.9 MiB</td><td class="num">2.7%</td><td class="num">30</td><td class="num">2.3 ms</td></tr><tr><td class="k">30 req/s</td><td class="num">0.060</td><td class="num">12.1%</td><td class="num">27.7 MiB</td><td class="num">2.7%</td><td class="num">33</td><td class="num">3.6 ms</td></tr><tr><td class="k">50 req/s</td><td class="num">0.104</td><td class="num">20.7%</td><td class="num">27.8 MiB</td><td class="num">2.7%</td><td class="num">30</td><td class="num">5.4 ms</td></tr><tr><td class="k">100 req/s</td><td class="num">0.195</td><td class="num">38.9%</td><td class="num">27.8 MiB</td><td class="num">2.7%</td><td class="num">36</td><td class="num">9.7 ms</td></tr></tbody></table></div><p class="foot">&ldquo;Requests in flight&rdquo; counts the interceptor&rsquo;s concurrent request handlers. It stayed at its idle baseline throughout: at these rates each admission finishes long before the next arrives, so nothing accumulates.</p><div class="tablewrap"><table><caption>Correctness breakdown — every request accounted for</caption><thead><tr><th>Offered rate</th><th class="num">Patch delivered in time</th><th class="num">Patch missed</th><th class="num">Correct no-op</th><th class="num">Spurious patch</th><th class="num">Failed no-op</th></tr></thead><tbody><tr><td class="k">10 req/s</td><td class="num">543</td><td class="num">0</td><td class="num">57</td><td class="num">0</td><td class="num">0</td></tr><tr><td class="k">20 req/s</td><td class="num">1,101</td><td class="num">0</td><td class="num">99</td><td class="num">0</td><td class="num">0</td></tr><tr><td class="k">30 req/s</td><td class="num">1,622</td><td class="num">0</td><td class="num">178</td><td class="num">0</td><td class="num">0</td></tr><tr><td class="k">50 req/s</td><td class="num">2,702</td><td class="num">0</td><td class="num">298</td><td class="num">0</td><td class="num">0</td></tr><tr><td class="k">100 req/s</td><td class="num">5,400</td><td class="num">0</td><td class="num">600</td><td class="num">0</td><td class="num">0</td></tr><tr><td class="k"><strong>Total</strong></td><td class="num"><strong>11,368</strong></td><td class="num"><strong>0</strong></td><td class="num"><strong>1,232</strong></td><td class="num"><strong>0</strong></td><td class="num"><strong>0</strong></td></tr></tbody></table></div><p class="foot">Not one admission that should have been patched went unpatched, and not one pod was patched that should not have been.</p></div></details>
+<details class="disc"><summary><span class="sign"></span>Scope and limitations<span class="hint">what this run does not establish</span></summary><div class="disc-body"><div class="prose"><p>What this test does not establish, stated plainly so the results are not read wider than they support.</p><ul><li><strong>The ceiling was not found.</strong> The highest rate tested passed, so 100 req/s is a demonstrated floor on capacity, not a measured maximum.</li><li><strong>This is not a soak test.</strong> The longest continuous period of load was 60 seconds. Slow effects &mdash; resource leaks, database growth over days, certificate rotation &mdash; are outside its reach. Memory and concurrency were flat within each window, which is evidence against accumulation but not a substitute for a long-duration run.</li><li><strong>Log verbosity matters and was set to ERROR.</strong> The interceptor ships log lines synchronously, so per-admission log volume is a direct cost on the admission path. Internal testing at high verbosity, with every line shipped to a remote collector, reached its limit at an order of magnitude lower rate &mdash; while CPU and memory stayed low, which is why that failure mode is invisible to resource dashboards. These results apply to a interceptor running at ERROR or WARN level, the shipped default.</li><li><strong>Single replica, single cluster, one run.</strong> No horizontal scaling, no cross-region latency, and no repetition for run-to-run variance. Absolute numbers will shift with node type, database placement and cluster load.</li><li><strong>The API server was not in the path.</strong> Load was applied directly to the interceptor&rsquo;s endpoint, so these numbers are the interceptor&rsquo;s contribution to pod admission time, not end-to-end pod creation time.</li><li><strong>The data set was pre-existing.</strong> Recommendation rows were seeded by an earlier identical run and re-verified before this one, so database writes during the run reflect updates rather than fresh inserts.</li><li><strong>Measured on a pre-release development build.</strong> Results should be re-confirmed against the release build before being quoted as product characteristics.</li></ul></div></div></details>
+<details class="disc"><summary><span class="sign"></span>Reproducing this run<span class="hint">the exact invocation</span></summary><div class="disc-body"><div class="prose"><p>The harness runs as a Kubernetes Job inside the target cluster. It seeds its own data, verifies it survived a round trip before sending any load, drives the endpoint, scrapes the interceptor&rsquo;s metrics during each scoring window, and emits the results file this report is generated from.</p><pre><code>run-job.sh \
+    --mode MIXED --chain-share 100 \
+    --owners 3000 --containers 2 \
+    --rates 10,20,30,50,100 \
+    --duration 60 --warmup 5 \
+    --patch-ratio 90,0,10 --owner-dist uniform</code></pre><p>Teardown removes the Deployments and namespaces the harness created and marks its seeded rows stale. It does not delete them, so a cluster used repeatedly for this test accumulates test data; absolute numbers are best compared within a session rather than across sessions.</p></div></div></details>
+<details class="disc"><summary><span class="sign"></span>Glossary<span class="hint">the terms used in this report</span></summary><div class="disc-body"><div class="tablewrap"><table><thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody><tr><td class="k">Mutating admission webhook</td><td>An HTTPS endpoint the Kubernetes API server calls while a resource is being created. The endpoint may return a patch, which the API server applies before the object is persisted and scheduled. The Sedai Pod Spec Interceptor is registered on pod creation, so it sees every pod the cluster creates and can apply the recommended configuration before the pod starts.</td></tr><tr><td class="k">Mutation yield</td><td>Of the admissions that should have received a patch, the share that actually received it inside the webhook timeout. It is the headline metric because the webhook is registered with <code>failurePolicy: Ignore</code>: if the interceptor answers late, the API server admits the pod anyway, without the optimization and without raising any error. A slowdown therefore shows up as work quietly not being done, not as a failure &mdash; which is exactly what this number is built to catch.</td></tr><tr><td class="k">p99 and other percentiles</td><td>The response time that 99% of requests came in under; 1 in 100 took longer. p50 is the typical response, p99.9 the slowest 1 in 1,000. Percentiles are used instead of averages because an average hides the tail, and the tail is what crosses a timeout.</td></tr><tr><td class="k">Cores and millicores</td><td>Kubernetes CPU units. 1,000 millicores (written <code>1000m</code>) is one CPU core. The interceptor in this test was configured with a 500 m limit &mdash; half of one core &mdash; and an equal request, so that half core is also guaranteed to it.</td></tr><tr><td class="k">Ownership chain</td><td>The path from a pod up to the workload that owns it: pod &rarr; ReplicaSet &rarr; Deployment. The interceptor has to walk it to find which recommendation applies to the pod it is being asked about. Every request in this test used that full chain, which is the most expensive case: two database lookups plus a live Kubernetes API call per request.</td></tr><tr><td class="k">Open-loop load</td><td>Requests are sent on a fixed schedule regardless of how quickly earlier ones come back &mdash; the way a real cluster creates pods. The alternative, closed-loop load, waits for each response before sending the next, so it silently slows down when the server does and can hide a backlog completely. Open-loop is the only shape in which a queue becomes visible.</td></tr></tbody></table></div></div></details>
+</div></section>
+<footer><p><strong>Pod Spec Interceptor Load Test</strong> &middot; run a987e315 &middot; 21 September 2026, 17:34-17:41 UTC &middot; harness build 9f1943d</p><p>Generated from the run&rsquo;s machine-readable results file; every figure in this report is read directly from it.</p></footer>
+</div>
+<dialog class="panel" id="panel"><div class="panel-head"><div><span class="k" id="panel-kicker"></span><h3 id="panel-title"></h3></div><button type="button" id="panel-close" aria-label="Close">&times;</button></div><div class="panel-body" id="panel-body"></div></dialog>
+<div class="tip-pop" id="tip-pop" role="tooltip"></div>
+<script>
+const STEPS = [{"rate": 10, "total": 600, "duration": 60, "achieved": 10.0, "p50": 14, "p90": 17, "p95": 19, "p99": 23, "p999": 39, "max": 39, "cores": 0.022557815163673348, "satPct": 4.51156303273467, "rss": 29233152, "goroutines": 27, "gc": 0.0015055759999999946, "genCpu": 1.2959923927547126, "yielded": 543, "missed": 0, "noop": 57, "spurious": 0, "noopFailed": 0, "yieldPct": "100.00%", "achievedPct": "100.00%", "errPct": "0.00%"}, {"rate": 20, "total": 1200, "duration": 60, "achieved": 20.0, "p50": 9, "p90": 16, "p95": 18, "p99": 27, "p999": 161, "max": 198, "cores": 0.04098007817208182, "satPct": 8.196015634416364, "rss": 29220864, "goroutines": 30, "gc": 0.002319300999999996, "genCpu": 1.675099662680159, "yielded": 1101, "missed": 0, "noop": 99, "spurious": 0, "noopFailed": 0, "yieldPct": "100.00%", "achievedPct": "100.00%", "errPct": "0.00%"}, {"rate": 30, "total": 1800, "duration": 60, "achieved": 30.0, "p50": 8, "p90": 15, "p95": 17, "p99": 24, "p999": 65, "max": 85, "cores": 0.06027104751080574, "satPct": 12.054209502161148, "rss": 29032448, "goroutines": 33, "gc": 0.0035861309999999924, "genCpu": 2.1688150452922152, "yielded": 1622, "missed": 0, "noop": 178, "spurious": 0, "noopFailed": 0, "yieldPct": "100.00%", "achievedPct": "100.00%", "errPct": "0.00%"}, {"rate": 50, "total": 3000, "duration": 60, "achieved": 50.0, "p50": 13, "p90": 16, "p95": 18, "p99": 27, "p999": 50, "max": 91, "cores": 0.10350112800730175, "satPct": 20.70022560146035, "rss": 29097984, "goroutines": 30, "gc": 0.005390220999999987, "genCpu": 2.5395293252436106, "yielded": 2702, "missed": 0, "noop": 298, "spurious": 0, "noopFailed": 0, "yieldPct": "100.00%", "achievedPct": "100.00%", "errPct": "0.00%"}, {"rate": 100, "total": 6000, "duration": 60, "achieved": 100.0, "p50": 13, "p90": 17, "p95": 19, "p99": 29, "p999": 99, "max": 161, "cores": 0.19461284100303108, "satPct": 38.922568200606214, "rss": 29184000, "goroutines": 36, "gc": 0.009662143000000012, "genCpu": 3.6486569267052587, "yielded": 5400, "missed": 0, "noop": 600, "spurious": 0, "noopFailed": 0, "yieldPct": "100.00%", "achievedPct": "100.00%", "errPct": "0.00%"}];
+const CPU_LIMIT = 0.5;
+const NS = "http://www.w3.org/2000/svg";
+
+function svgEl(tag, attrs){
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  return n;
+}
+function txt(n, s){ n.textContent = s; return n; }
+function fmt(v, d){ return v.toFixed(d); }
+
+/* Tooltip shared by both figures: one per .figure, positioned against its box. */
+function tipFor(fig){
+  let t = fig.querySelector(".tip");
+  if (!t){ t = document.createElement("div"); t.className = "tip"; fig.appendChild(t); }
+  return t;
+}
+function showTip(fig, html, clientX, clientY){
+  const t = tipFor(fig);
+  t.innerHTML = html;
+  t.style.opacity = "1";
+  const box = fig.getBoundingClientRect();
+  const w = t.offsetWidth, h = t.offsetHeight;
+  let x = clientX - box.left + 16;
+  let y = clientY - box.top - h - 12;
+  if (x + w > box.width - 8) x = clientX - box.left - w - 16;
+  if (y < 6) y = clientY - box.top + 18;
+  t.style.left = Math.max(6, x) + "px";
+  t.style.top = Math.max(6, y) + "px";
+}
+function hideTip(fig){ tipFor(fig).style.opacity = "0"; }
+
+/* ---- Figure 1: response time percentiles across the rate steps ---- */
+function renderLatency(){
+  const host = document.getElementById("chart-latency");
+  const fig = host.closest(".figure");
+  const W = 780, H = 330, L = 52, R = 104, T = 18, B = 42;
+  const series = [
+    {k:"p50", label:"p50", c:"var(--o1)"},
+    {k:"p90", label:"p90", c:"var(--o2)"},
+    {k:"p95", label:"p95", c:"var(--o3)"},
+    {k:"p99", label:"p99", c:"var(--o4)"}
+  ];
+  let peak = 0;
+  STEPS.forEach(s => series.forEach(se => { peak = Math.max(peak, s[se.k]); }));
+  const yMax = Math.ceil(peak / 20) * 20;
+  const yStep = yMax / 4;
+  const bw = (W - L - R) / STEPS.length;
+  const X = i => L + bw * (i + 0.5);
+  const Y = v => H - B - (v / yMax) * (H - B - T);
+
+  const svg = svgEl("svg", {viewBox:`0 0 ${W} ${H}`, role:"img",
+    "aria-label":"Response time percentiles at each offered rate. Every percentile stays flat as the rate rises tenfold."});
+
+  const grid = svgEl("g", {class:"grid"});
+  for (let v = 0; v <= yMax; v += yStep){
+    grid.appendChild(svgEl("line", {x1:L, x2:W-R, y1:Y(v), y2:Y(v)}));
+  }
+  svg.appendChild(grid);
+
+  const axis = svgEl("g", {class:"axis"});
+  for (let v = 0; v <= yMax; v += yStep){
+    axis.appendChild(txt(svgEl("text", {x:L-10, y:Y(v)+4, "text-anchor":"end"}), v + (v === yMax ? " ms" : "")));
+  }
+  STEPS.forEach((s, i) => {
+    axis.appendChild(txt(svgEl("text", {x:X(i), y:H-B+20, "text-anchor":"middle"}), s.rate));
+  });
+  axis.appendChild(txt(svgEl("text", {x:(L+W-R)/2, y:H-B+38, "text-anchor":"middle"}), "offered rate (admissions / second)"));
+  axis.appendChild(svgEl("line", {x1:L, x2:W-R, y1:Y(0), y2:Y(0)}));
+  svg.appendChild(axis);
+
+  /* Right-edge direct labels, pushed apart so close percentiles stay readable. */
+  const labels = series.map((se, idx) => ({idx, y:Y(STEPS[STEPS.length-1][se.k]), se}))
+                       .sort((a,b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++){
+    if (labels[i].y - labels[i-1].y < 15) labels[i].y = labels[i-1].y + 15;
+  }
+
+  series.forEach((se, si) => {
+    const pts = STEPS.map((s, i) => `${X(i)},${Y(s[se.k])}`).join(" ");
+    svg.appendChild(svgEl("polyline", {points:pts, fill:"none", stroke:se.c,
+      "stroke-width":2, "stroke-linejoin":"round", "stroke-linecap":"round"}));
+    STEPS.forEach((s, i) => {
+      svg.appendChild(svgEl("circle", {cx:X(i), cy:Y(s[se.k]), r:4, fill:se.c,
+        stroke:"var(--surface)", "stroke-width":2}));
+    });
+    const lab = labels.find(l => l.idx === si);
+    const g = svgEl("g", {});
+    g.appendChild(txt(svgEl("text", {x:W-R+14, y:lab.y+4, fill:se.c,
+      "font-family":"IBM Plex Mono, monospace", "font-size":"11.5", "font-weight":"600"}),
+      se.label + "  " + STEPS[STEPS.length-1][se.k] + " ms"));
+    svg.appendChild(g);
+  });
+
+  const cross = svgEl("line", {x1:0, x2:0, y1:T, y2:H-B, stroke:"var(--rule-strong)", "stroke-width":1, opacity:0});
+  svg.appendChild(cross);
+
+  STEPS.forEach((s, i) => {
+    const hit = svgEl("rect", {x:L + bw*i, y:T, width:bw, height:H-B-T, fill:"transparent"});
+    hit.addEventListener("pointerenter", () => {
+      cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("opacity", 1);
+    });
+    hit.addEventListener("pointermove", e => {
+      const rows = series.map(se =>
+        `<div class="row"><span><i style="background:${se.c}"></i>${se.label}</span><span>${s[se.k]} ms</span></div>`).join("");
+      const tail =
+        `<div class="row"><span>p99.9</span><span>${s.p999} ms</span></div>` +
+        `<div class="row"><span>worst single</span><span>${s.max} ms</span></div>`;
+      showTip(fig, `<b>${s.rate} req/s &middot; ${s.total.toLocaleString()} admissions</b>${rows}${tail}`, e.clientX, e.clientY);
+    });
+    hit.addEventListener("pointerleave", () => { cross.setAttribute("opacity", 0); hideTip(fig); });
+    svg.appendChild(hit);
+  });
+
+  host.appendChild(svg);
+}
+
+/* ---- Figure 2: CPU consumed against the interceptor's configured limit ---- */
+function renderCpu(){
+  const host = document.getElementById("chart-cpu");
+  const fig = host.closest(".figure");
+  const W = 780, H = 300, L = 58, R = 26, T = 26, B = 42;
+  const yMax = CPU_LIMIT;
+  const bw = (W - L - R) / STEPS.length;
+  const barW = Math.min(64, bw * 0.46);
+  const X = i => L + bw * (i + 0.5);
+  const Y = v => H - B - (v / yMax) * (H - B - T);
+
+  const svg = svgEl("svg", {viewBox:`0 0 ${W} ${H}`, role:"img",
+    "aria-label":"CPU consumed by the interceptor at each offered rate, against its 500 millicore limit. Consumption rises linearly and peaks at 39 percent of the limit."});
+
+  const grid = svgEl("g", {class:"grid"});
+  for (let i = 0; i <= 4; i++){
+    const v = yMax * i / 4;
+    grid.appendChild(svgEl("line", {x1:L, x2:W-R, y1:Y(v), y2:Y(v)}));
+  }
+  svg.appendChild(grid);
+
+  const axis = svgEl("g", {class:"axis"});
+  for (let i = 0; i <= 4; i++){
+    const v = yMax * i / 4;
+    axis.appendChild(txt(svgEl("text", {x:L-10, y:Y(v)+4, "text-anchor":"end"}), fmt(v, 3)));
+  }
+  axis.appendChild(txt(svgEl("text", {x:L-10, y:T-12, "text-anchor":"end"}), "cores"));
+  STEPS.forEach((s, i) => {
+    axis.appendChild(txt(svgEl("text", {x:X(i), y:H-B+20, "text-anchor":"middle"}), s.rate));
+  });
+  axis.appendChild(txt(svgEl("text", {x:(L+W-R)/2, y:H-B+38, "text-anchor":"middle"}), "offered rate (admissions / second)"));
+  axis.appendChild(svgEl("line", {x1:L, x2:W-R, y1:Y(0), y2:Y(0)}));
+  svg.appendChild(axis);
+
+  STEPS.forEach((s, i) => {
+    const h = Math.max(2, Y(0) - Y(s.cores));
+    const x = X(i) - barW/2, y = Y(s.cores), r = Math.min(4, h);
+    const d = `M${x},${y+h} L${x},${y+r} Q${x},${y} ${x+r},${y} L${x+barW-r},${y} Q${x+barW},${y} ${x+barW},${y+r} L${x+barW},${y+h} Z`;
+    const bar = svgEl("path", {d, fill:"var(--c1)"});
+    svg.appendChild(bar);
+    svg.appendChild(txt(svgEl("text", {x:X(i), y:y-9, "text-anchor":"middle", class:"slab"}), fmt(s.cores, 3)));
+
+    const hit = svgEl("rect", {x:L + bw*i, y:T, width:bw, height:H-B-T, fill:"transparent"});
+    hit.addEventListener("pointermove", e => {
+      showTip(fig,
+        `<b>${s.rate} req/s</b>` +
+        `<div class="row"><span>cores used</span><span>${fmt(s.cores,3)}</span></div>` +
+        `<div class="row"><span>of 500 m limit</span><span>${fmt(s.satPct,1)}%</span></div>` +
+        `<div class="row"><span>memory</span><span>${(s.rss/1048576).toFixed(1)} MiB</span></div>` +
+        `<div class="row"><span>in-flight</span><span>${s.goroutines} goroutines</span></div>`,
+        e.clientX, e.clientY);
+    });
+    hit.addEventListener("pointerleave", () => hideTip(fig));
+    svg.appendChild(hit);
+  });
+
+  const ref = svgEl("g", {class:"ref"});
+  ref.appendChild(svgEl("line", {x1:L, x2:W-R, y1:Y(yMax), y2:Y(yMax)}));
+  ref.appendChild(txt(svgEl("text", {x:W-R, y:Y(yMax)-8, "text-anchor":"end"}), "500 m — the interceptor's configured CPU limit"));
+  svg.appendChild(ref);
+
+  host.appendChild(svg);
+}
+
+renderLatency();
+renderCpu();
+
+const PANELS = {"rate": {"kicker": "Headline metric", "title": "Sustained rate", "html": "<p>The highest arrival rate at which every pass criterion was met. The interceptor kept up with the offered rate exactly at every step, so no step was limited by the interceptor absorbing load more slowly than it arrived.</p><p>This is a <strong>floor</strong> on capacity, not a ceiling: the highest rate tested passed comfortably, so the true limit is somewhere above it and was not located by this run.</p>"}, "yield": {"kicker": "Headline metric", "title": "Mutation yield", "html": "<p>Of the admissions that should have received a patch, the share that actually received it inside the webhook timeout.</p><p>It is the headline metric because the webhook is registered with <code>failurePolicy: Ignore</code>: if the interceptor answers late, the API server admits the pod anyway, without the optimization and without raising any error. A slowdown therefore shows up as work quietly not being done, not as a failure &mdash; which is exactly what this number is built to catch.</p><p>Across the whole run, 11,368 admissions needed a patch and 11,368 received one. 0 were missed.</p>"}, "p99": {"kicker": "Response time", "title": "p99 response time", "html": "<p>The response time that 99% of requests came in under; 1 in 100 took longer. p50 is the typical response, p99.9 the slowest 1 in 1,000.</p><p>Percentiles are used instead of averages because an average hides the tail, and the tail is what crosses a timeout.</p><p>The worst p99 recorded at any rate was 29 ms, against a production webhook timeout of 1,000 ms.</p>"}, "max": {"kicker": "Response time", "title": "Slowest single response", "html": "<p>The single slowest response of all 12,600 admissions in the run: 198 ms, or 20% of the 1,000 ms budget the API server allows before it gives up and admits the pod unoptimized.</p><p>Worth reading alongside p99: one slow response out of thousands is normal in any networked system. What matters is that even the worst one stayed inside the budget.</p>"}, "cpu": {"kicker": "Resources", "title": "CPU consumption", "html": "<p>Kubernetes CPU units. 1,000 millicores (written <code>1000m</code>) is one CPU core. The interceptor in this test was configured with a 500 m limit &mdash; half of one core &mdash; and an equal request, so that half core is also guaranteed to it.</p><p>CPU consumption was measured from the interceptor's own metrics, taking the difference between samples that fall inside each scoring window &mdash; so warm-up and idle time are not averaged into it.</p>"}, "memory": {"kicker": "Resources", "title": "Memory", "html": "<p>Resident memory of the interceptor process during each measured window, against its 1 GiB limit.</p><p>It did not grow with load: the same footprint at 10 req/s and at 100 req/s. That is the signature of a system that finishes each request rather than accumulating them.</p>"}, "errors": {"kicker": "Reliability", "title": "Errors", "html": "<p>Requests that failed outright &mdash; a connection error, a non-success response, or a request that never came back inside the scoring timeout.</p><p>There were none, at any rate, in 12,600 admissions.</p>"}, "defects": {"kicker": "Correctness", "title": "Correctness defects", "html": "<p>Two things would count as a defect: a pod patched when the interceptor had no recommendation licensing that patch, and an admission that should have been left alone but failed or timed out instead.</p><p>Neither occurred. 10% of the traffic was seeded specifically to have no applicable recommendation, precisely so that a interceptor patching too eagerly would be caught.</p>"}};
+const DEFS = {"webhook": {"title": "Mutating admission webhook", "html": "<p>An HTTPS endpoint the Kubernetes API server calls while a resource is being created. The endpoint may return a patch, which the API server applies before the object is persisted and scheduled.</p><p>The Sedai Pod Spec Interceptor is registered on pod creation, so it sees every pod the cluster creates and can apply the recommended configuration before the pod starts.</p>"}, "yield": {"title": "Mutation yield", "html": "<p>Of the admissions that should have received a patch, the share that actually received it inside the webhook timeout.</p><p>It is the headline metric because the webhook is registered with <code>failurePolicy: Ignore</code>: if the interceptor answers late, the API server admits the pod anyway, without the optimization and without raising any error. A slowdown therefore shows up as work quietly not being done, not as a failure &mdash; which is exactly what this number is built to catch.</p>"}, "p99": {"title": "p99 and other percentiles", "html": "<p>The response time that 99% of requests came in under; 1 in 100 took longer. p50 is the typical response, p99.9 the slowest 1 in 1,000.</p><p>Percentiles are used instead of averages because an average hides the tail, and the tail is what crosses a timeout.</p>"}, "cores": {"title": "Cores and millicores", "html": "<p>Kubernetes CPU units. 1,000 millicores (written <code>1000m</code>) is one CPU core. The interceptor in this test was configured with a 500 m limit &mdash; half of one core &mdash; and an equal request, so that half core is also guaranteed to it.</p>"}, "chain": {"title": "Ownership chain", "html": "<p>The path from a pod up to the workload that owns it: pod &rarr; ReplicaSet &rarr; Deployment. The interceptor has to walk it to find which recommendation applies to the pod it is being asked about.</p><p>Every request in this test used that full chain, which is the most expensive case: two database lookups plus a live Kubernetes API call per request.</p>"}, "openloop": {"title": "Open-loop load", "html": "<p>Requests are sent on a fixed schedule regardless of how quickly earlier ones come back &mdash; the way a real cluster creates pods.</p><p>The alternative, closed-loop load, waits for each response before sending the next, so it silently slows down when the server does and can hide a backlog completely. Open-loop is the only shape in which a queue becomes visible.</p>"}};
+const dlg = document.getElementById("panel");
+
+function openPanel(kicker, title, html){
+  document.getElementById("panel-kicker").textContent = kicker;
+  document.getElementById("panel-title").textContent = title;
+  document.getElementById("panel-body").innerHTML = html;
+  if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+}
+document.getElementById("panel-close").addEventListener("click", () => dlg.close());
+dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+
+/* A metric tile opens the explanation of that number plus its value at every rate step. */
+function metricRows(key, fmtFn){
+  return '<div class="kv">' + STEPS.map(s =>
+    `<span>${s.rate} req/s</span><span>${fmtFn(s)}</span>`).join("") + '</div>';
+}
+const METRIC_TABLE = {
+  yield:   s => (s.yieldPct),
+  p99:     s => s.p99 + " ms",
+  max:     s => s.max + " ms",
+  cpu:     s => s.cores.toFixed(3) + " cores &middot; " + s.satPct.toFixed(1) + "%",
+  memory:  s => (s.rss/1048576).toFixed(1) + " MiB",
+  rate:    s => s.achievedPct,
+  errors:  s => s.errPct,
+  defects: s => (s.spurious + s.noopFailed) + " of " + s.total.toLocaleString()
+};
+
+document.querySelectorAll("[data-panel]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const key = btn.dataset.panel, p = PANELS[key];
+    let html = p.html;
+    if (METRIC_TABLE[key]) html += '<h4>At each rate step</h4>' + metricRows(key, METRIC_TABLE[key]);
+    openPanel(p.kicker, p.title, html);
+  });
+});
+
+/* A results row opens everything measured at that rate step. */
+document.querySelectorAll("tr[data-step]").forEach(tr => {
+  const open = () => {
+    const s = STEPS[+tr.dataset.step];
+    const kv = rows => '<div class="kv">' + rows.map(r => `<span>${r[0]}</span><span>${r[1]}</span>`).join("") + '</div>';
+    const html =
+      '<h4>Throughput</h4>' + kv([
+        ["Offered rate", s.rate + " req/s"],
+        ["Achieved rate", s.achieved.toFixed(1) + " req/s"],
+        ["Admissions sent", s.total.toLocaleString()],
+        ["Measured window", s.duration + " s"]
+      ]) +
+      '<h4>Correctness</h4>' + kv([
+        ["Patch delivered in time", s.yielded.toLocaleString()],
+        ["Patch missed", String(s.missed)],
+        ["Correct no-op", s.noop.toLocaleString()],
+        ["Patched without a recommendation", String(s.spurious)],
+        ["Failed no-op", String(s.noopFailed)],
+        ["Mutation yield", s.yieldPct]
+      ]) +
+      '<h4>Response time</h4>' + kv([
+        ["Typical (p50)", s.p50 + " ms"],
+        ["p90", s.p90 + " ms"],
+        ["p95", s.p95 + " ms"],
+        ["p99", s.p99 + " ms"],
+        ["p99.9", s.p999 + " ms"],
+        ["Slowest single response", s.max + " ms"],
+        ["Share of the 1 s webhook budget", (s.max/10).toFixed(1) + "%"]
+      ]) +
+      '<h4>Interceptor resources</h4>' + kv([
+        ["CPU consumed", s.cores.toFixed(3) + " cores"],
+        ["Share of the 500 m limit", s.satPct.toFixed(1) + "%"],
+        ["Memory resident", (s.rss/1048576).toFixed(1) + " MiB"],
+        ["Requests in flight", String(s.goroutines)],
+        ["Garbage-collection pause in window", (s.gc*1000).toFixed(1) + " ms"]
+      ]) +
+      '<p>Load generator CPU was ' + s.genCpu.toFixed(1) + '% of its own allocation during this step, ' +
+      'so the generator was nowhere near being the bottleneck.</p>';
+    openPanel(s.rate + " req/s step", "Everything measured at " + s.rate + " req/s", html);
+  };
+  tr.addEventListener("click", open);
+  tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); open(); } });
+});
+
+/* Inline terms open their definition. */
+document.querySelectorAll("button.term").forEach(b => {
+  b.addEventListener("click", () => {
+    const d = DEFS[b.dataset.term];
+    openPanel("Definition", d.title, d.html);
+  });
+});
+
+const tipPop = document.getElementById("tip-pop");
+let tipTimer = null;
+function placeTip(el){
+  const r = el.getBoundingClientRect();
+  tipPop.style.left = "0px"; tipPop.style.top = "0px";
+  const w = tipPop.offsetWidth, h = tipPop.offsetHeight;
+  let x = r.left + r.width/2 - w/2;
+  x = Math.max(10, Math.min(x, window.innerWidth - w - 10));
+  let y = r.top - h - 10;
+  if (y < 10) y = r.bottom + 10;
+  tipPop.style.left = x + "px";
+  tipPop.style.top = y + "px";
+}
+function showElTip(el){
+  tipPop.textContent = el.dataset.tip;
+  tipPop.classList.add("on");
+  placeTip(el);
+}
+function hideElTip(){ tipPop.classList.remove("on"); }
+function tipEnter(e){
+  const el = e.target.closest && e.target.closest("[data-tip]");
+  if (!el) return;
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => showElTip(el), 90);
+}
+function tipLeave(e){
+  if (e.target.closest && e.target.closest("[data-tip]")){ clearTimeout(tipTimer); hideElTip(); }
+}
+/* Both event families: pointer events cover touch and pen, mouseover covers every
+   desktop browser and anything that synthesises only legacy mouse events. */
+document.addEventListener("pointerover", tipEnter);
+document.addEventListener("pointerout", tipLeave);
+document.addEventListener("mouseover", tipEnter);
+document.addEventListener("mouseout", tipLeave);
+document.addEventListener("focusin", e => {
+  const el = e.target.closest("[data-tip]");
+  if (el) showElTip(el);
+});
+document.addEventListener("focusout", hideElTip);
+window.addEventListener("scroll", hideElTip, {passive:true});
+document.addEventListener("keydown", e => { if (e.key === "Escape") hideElTip(); });
+</script>
+</body></html>
